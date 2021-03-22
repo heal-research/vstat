@@ -150,9 +150,8 @@ public:
 
         const auto s = vec::size(), m = n & (-s);
         for (size_t i = s; i < m; i += s) {
-            vec xx = vec().load(x + i);
             vec ww = vec().load(w + i);
-            xx *= ww;
+            vec xx = vec().load(x + i) * ww;
             vec dx = sum_w * xx - sum_x * ww;
             sum_w += ww;
             sum_x += xx;

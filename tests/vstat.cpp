@@ -23,8 +23,9 @@ double Variance(nb::Bench& bench, std::vector<T> const& x)
     size_t i = 0;
     bench.batch(x.size()).run("variance " + std::string(typeid(T).name()) + " " + std::to_string(x.size()), [&]() {
         VarianceCalculator calc;
+        T w{1.0};
         for (auto v : x) {
-            calc.Add(v);
+            calc.Add(v, w);
         }
         c += calc.NaiveVariance();
         i += 1;
@@ -106,6 +107,8 @@ TEST_SUITE("[correctness]")
 
         std::vector<double> xd(n);
         std::vector<float> xf(n);
+        std::vector<double> wd(n, 1.0);
+        std::vector<float> wf(n, 1.0);
 
         std::generate(xd.begin(), xd.end(), [&]() { return dist(rng); });
         std::copy(xd.begin(), xd.end(), xf.begin());
@@ -117,9 +120,15 @@ TEST_SUITE("[correctness]")
         SUBCASE("mean")
         {
             VarianceCalculator vc;
-            vc.Add(xf.data(), xf.size());
+            vc.Add(xf.data(), wf.data(), xf.size());
+            auto vst_mean_flt_simd = vc.Mean();
+
+            vc.Reset();
+            for (auto v : xf) vc.Add(v);
+            auto vst_mean_flt = vc.Mean();
             ENSURE(std::abs(gsl_mean_flt - vc.Mean()) < 1e-6);
-            std::cout << std::setprecision(20) << "gsl mean flt: " << gsl_mean_flt << ", vst mean flt: " << vc.Mean() << "\n";
+            std::cout << "Mean float:\n";
+            std::cout << std::setprecision(20) << "gsl: " << gsl_mean_flt << ", vst: " << vst_mean_flt << ", vst simd: " << vst_mean_flt_simd << "\n";
 
             vc.Reset();
             vc.Add(xd.data(), xd.size());
@@ -157,7 +166,7 @@ TEST_SUITE("[performance]")
         std::default_random_engine rng(12345);
         std::uniform_real_distribution<double> dist(0, 1);
 
-        for (size_t n = size_t(1e2); n <= size_t(1e7); n *= 10)
+        for (size_t n = size_t(1e2); n <= size_t(1e6); n *= 10)
         {
             std::vector<double> xd(n);
             std::vector<float> xf(n);
