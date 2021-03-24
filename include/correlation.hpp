@@ -2,10 +2,87 @@
 #define VSTAT_CORRELATION_HPP
 
 #include "combine.hpp"
+#include <type_traits>
 
 #if defined(VSTAT_NAMESPACE)
 namespace VSTAT_NAMESPACE {
 #endif
+
+template<typename T, std::enable_if_t<std::is_same_v<T, Vec8f> || std::is_same_v<T, Vec4d>, bool> = true>
+struct CorrelationAccumulator {
+    CorrelationAccumulator(T x, T y, T w) : sum_x(x), sum_y(y), sum_w(w), sum_xx(0.0), sum_yy(0.0), sum_xy(0.0) { }
+    CorrelationAccumulator(T x, T y) : CorrelationAccumulator(x, y, T(1.0)) { }
+    CorrelationAccumulator() : CorrelationAccumulator(T(0.0), T(0.0), T(0.0)) { }
+
+    void Reset()
+    {
+        sum_w = sum_x = sum_y = sum_xx = sum_yy = sum_xy = 0.0;
+    }
+
+    inline void operator()(T x, T y)
+    {
+        T dx = x * sum_w - sum_x;
+        T dy = y * sum_w - sum_y;
+
+        sum_x += x;
+        sum_y += y;
+        sum_w += 1;
+
+        T f = 1. / (sum_w * (sum_w - 1));
+        sum_xx += f * dx * dx;
+        sum_yy += f * dy * dy;
+        sum_xy += f * dx * dy;
+    }
+
+    inline void operator()(T x, T y, T w)
+    {
+        T dx = x * sum_w - sum_x;
+        T dy = y * sum_w - sum_y;
+
+        sum_x += x * w;
+        sum_y += y * w;
+        sum_w += w;
+
+        T f = w / (sum_w * (sum_w - w));
+
+        sum_xx += f * dx * dx;
+        sum_yy += f * dy * dy;
+        sum_xy += f * dx * dy;
+    }
+
+    template<typename U, std::enable_if_t<std::is_floating_point_v<U> && sizeof(U) == T::size(), bool> = true>
+    inline void operator()(U const* x, U const* y)
+    {
+        (*this)(T().load(x), T().load(y));
+    }
+
+    template<typename U, std::enable_if_t<std::is_floating_point_v<U> && sizeof(U) == T::size(), bool> = true>
+    inline void operator()(U const* x, U const* y, U const* w)
+    {
+        (*this)(T().load(x), T().load(y), T().load(w));
+    }
+
+    // performs a reduction on the vector types and returns the sums and the squared residuals sums
+    std::tuple<double, double, double, double, double, double> Stats()
+    {
+        double sw = horizontal_add(sum_w);
+        double sx = horizontal_add(sum_x);
+        double sy = horizontal_add(sum_y);
+
+        auto [sxx, syy, sxy] = combine(sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy);
+        return { sw, sx, sy, sxx, syy, sxy };
+    }
+
+    // sum of weights
+    T sum_w;
+    // means
+    T sum_x;
+    T sum_y;
+    // squared residuals
+    T sum_xx;
+    T sum_yy;
+    T sum_xy;
+};
 
 class CorrelationCalculator {
 public:
@@ -120,25 +197,21 @@ public:
         }
 
         if (_sum_w <= 0.) {
-            _sum_x = x;
-            _sum_y = y;
+            _sum_x = x * w;
+            _sum_y = y * w;
             _sum_w = w;
             return;
         }
 
-        x *= w;
-        y *= w;
-
-        // Delta to previous mean
-        double dx = x * _sum_w - _sum_x * w;
-        double dy = y * _sum_w - _sum_y * w;
+        double dx = x * _sum_w - _sum_x;
+        double dy = y * _sum_w - _sum_y;
         double old_we = _sum_w;
 
-        _sum_x += x;
-        _sum_y += y;
+        _sum_x += x * w;
+        _sum_y += y * w;
         _sum_w += w;
 
-        double f = 1. / (w * _sum_w * old_we);
+        double f = w / (_sum_w * old_we);
         _sum_xx += f * dx * dx;
         _sum_yy += f * dy * dy;
         _sum_xy += f * dx * dy;
@@ -155,38 +228,17 @@ public:
             return;
         }
 
-        vec sum_x = vec().load(x);
-        vec sum_y = vec().load(y);
-        vec sum_w = vec(1.0);
+        CorrelationAccumulator<vec> acc(vec().load(x), vec().load(y));
 
-        vec sum_xx(0.0);
-        vec sum_yy(0.0);
-        vec sum_xy(0.0);
-
-        const auto s = vec::size(), m = n & (-s);
+        const size_t s = vec::size(), m = n & (-s);
         for (size_t i = s; i < m; i += s) {
-            vec xx = vec().load(x + i);
-            vec yy = vec().load(y + i);
-
-            vec dx = xx * sum_w - sum_x;
-            vec dy = yy * sum_w - sum_y;
-
-            sum_w += 1;
-            vec f = 1. / (sum_w * (sum_w - 1));
-
-            sum_x += xx;
-            sum_y += yy;
-
-            sum_xx += f * dx * dx;
-            sum_yy += f * dy * dy;
-            sum_xy += f * dx * dy;
+            acc(vec().load(x + i), vec().load(y + i));
         }
 
-        _sum_w = horizontal_add(sum_w);
-        _sum_x  = horizontal_add(sum_x);
-        _sum_y  = horizontal_add(sum_y);
-
-        auto [sxx, syy, sxy] = combine(sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy);
+        auto [sw, sx, sy, sxx, syy, sxy] = acc.Stats();
+        _sum_w = sw;
+        _sum_x = sx;
+        _sum_y = sy;
         _sum_xx = sxx;
         _sum_yy = syy;
         _sum_xy = sxy;
@@ -203,51 +255,29 @@ public:
         using vec = std::conditional_t<std::is_same_v<T, double>, Vec4d, Vec8f>;
         if (n < vec::size()) {
             for (size_t i = 0; i < n; ++i) {
-                Add(*(x + i), *(y + i));
+                Add(*(x + i), *(y + i), *(w + i));
             }
             return;
         }
 
-        vec sum_x = vec().load(x);
-        vec sum_y = vec().load(y);
-        vec sum_w = vec().load(w);
+        CorrelationAccumulator<vec> acc(vec().load(x), vec().load(y), vec().load(w));
 
-        vec sum_xx(0.0);
-        vec sum_yy(0.0);
-        vec sum_xy(0.0);
-
-        const auto s = vec::size(), m = n & (-s);
+        const size_t s = vec::size(), m = n & (-s);
         for (size_t i = s; i < m; i += s) {
-            vec ww = vec().load(w + i);
-            vec xx = vec().load(x + i) * ww;
-            vec yy = vec().load(y + i);
-
-            vec dx = xx * sum_w - sum_x * ww;
-            vec dy = yy * sum_w - sum_y * ww;
-
-            sum_w += ww;
-            vec f = 1. / (ww * sum_w * (sum_w - 1));
-
-            sum_x += xx;
-            sum_y += yy;
-
-            sum_xx += f * dx * dx;
-            sum_yy += f * dy * dy;
-            sum_xy += f * dx * dy;
+            acc(vec().load(x + i), vec().load(y + i), vec().load(w + i));
         }
 
-        _sum_w = horizontal_add(sum_w);
-        _sum_x  = horizontal_add(sum_x);
-        _sum_y  = horizontal_add(sum_y);
-
-        auto [sxx, syy, sxy] = combine(sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy);
+        auto [sw, sx, sy, sxx, syy, sxy] = acc.Stats();
+        _sum_w = sw;
+        _sum_x = sx;
+        _sum_y = sy;
         _sum_xx = sxx;
         _sum_yy = syy;
         _sum_xy = sxy;
 
         // deal with remaining values
         if (m < n) {
-            Add(x + m, y + m, n - m);
+            Add(x + m, y + m, w + m, n - m);
         }
     }
 

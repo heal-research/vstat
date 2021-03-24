@@ -7,6 +7,57 @@
 namespace VSTAT_NAMESPACE {
 #endif
 
+template<typename T, std::enable_if_t<std::is_same_v<T, Vec8f> || std::is_same_v<T, Vec4d>, bool> = true>
+struct VarianceAccumulator {
+    VarianceAccumulator(T x, T w) : sum_x(x), sum_w(w), sum_xx(0.0) { }
+    VarianceAccumulator(T x) : VarianceAccumulator(x, T(1.0)) { }
+    VarianceAccumulator() : VarianceAccumulator(T(0.0), T(1.0)) { }
+
+    void Reset()
+    {
+        sum_w  = sum_x = sum_xx = 0.0;
+    }
+
+    inline void operator()(T x) noexcept
+    {
+        T dx = sum_w * x - sum_x;
+        sum_w += 1;
+        sum_x += x;
+        sum_xx += dx * dx / (sum_w * (sum_w - 1));
+    }
+
+    inline void operator()(T x, T w) noexcept
+    {
+        x *= w;
+        T dx = sum_w * x - sum_x * w;
+        sum_w += w;
+        sum_x += x;
+        sum_xx += dx * dx / (w * sum_w * (sum_w - w));
+    }
+
+    template<typename U, std::enable_if_t<std::is_floating_point_v<U> && sizeof(U) == T::size(), bool> = true>
+    inline void operator()(U const* x) noexcept
+    {
+        (*this)(T().load(x));
+    }
+
+    template<typename U, std::enable_if_t<std::is_floating_point_v<U> && sizeof(U) == T::size(), bool> = true>
+    inline void operator()(U const* x, U const* w) noexcept
+    {
+        (*this)(T().load(x), T().load(w));
+    }
+
+    // performs the reductions and returns { sum_w, sum_x, sum_xx }
+    std::tuple<double, double, double> Stats()
+    {
+        return { horizontal_add(sum_w), horizontal_add(sum_x), combine(sum_w, sum_x, sum_xx) };
+    }
+
+    T sum_x;
+    T sum_w;
+    T sum_xx;
+};
+
 class VarianceCalculator {
 public:
     VarianceCalculator()
@@ -110,22 +161,16 @@ public:
             return;
         }
 
-        vec sum_x = vec().load(x);
-        vec sum_xx(0.0);
-        vec sum_w(1.0);
-
-        const auto s = vec::size(), m = n & (-s);
+        VarianceAccumulator<vec> acc(vec().load(x), vec(1.0));
+        const size_t s = vec::size(), m = n & (-s);
         for (size_t i = s; i < m; i += s) {
-            vec xx = vec().load(x + i);
-            vec dx = sum_w * xx - sum_x;
-            sum_w += 1;
-            sum_x += xx;
-            sum_xx += dx * dx / (sum_w * (sum_w - 1));
+            acc(vec().load(x + i));
         }
 
-        _sum_w = horizontal_add(sum_w);
-        _sum_x = horizontal_add(sum_x);
-        _sum_xx = combine(sum_w, sum_x, sum_xx);
+        auto [ sw, sx, sxx] = acc.Stats();
+        _sum_w = sw;
+        _sum_x = sx;
+        _sum_xx = sxx;
 
         // deal with remaining values
         if (m < n) {
@@ -144,23 +189,16 @@ public:
             return;
         }
 
-        vec sum_x = vec().load(x);
-        vec sum_xx(0.0);
-        vec sum_w = vec().load(w);
-
-        const auto s = vec::size(), m = n & (-s);
+        VarianceAccumulator<vec> acc(vec().load(x), vec().load(w));
+        const size_t s = vec::size(), m = n & (-s);
         for (size_t i = s; i < m; i += s) {
-            vec ww = vec().load(w + i);
-            vec xx = vec().load(x + i) * ww;
-            vec dx = sum_w * xx - sum_x * ww;
-            sum_w += ww;
-            sum_x += xx;
-            sum_xx += dx * dx / (ww * sum_w * (sum_w - 1));
+            acc(vec().load(x + i), vec().load(w + i));
         }
 
-        _sum_w = horizontal_add(sum_w);
-        _sum_x = horizontal_add(sum_x);
-        _sum_xx = combine(sum_w, sum_x, sum_xx);
+        auto [ sw, sx, sxx] = acc.Stats();
+        _sum_w = sw;
+        _sum_x = sx;
+        _sum_xx = sxx;
 
         // deal with remaining values
         if (m < n) {
