@@ -11,7 +11,7 @@ template<typename T, std::enable_if_t<std::is_same_v<T, Vec8f> || std::is_same_v
 struct VarianceAccumulator {
     VarianceAccumulator(T x, T w) : sum_x(x), sum_w(w), sum_xx(0.0) { }
     VarianceAccumulator(T x) : VarianceAccumulator(x, T(1.0)) { }
-    VarianceAccumulator() : VarianceAccumulator(T(0.0), T(1.0)) { }
+    VarianceAccumulator() : VarianceAccumulator(T(0.0), T(0.0)) { }
 
     void Reset()
     {

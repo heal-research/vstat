@@ -33,21 +33,21 @@ namespace {
         return a * a;
     }
 
-    auto unpack(Vec4d v) -> std::tuple<double, double, double, double>
+    std::tuple<double, double, double, double> unpack(Vec4d v)
     {
         double x[4];
         v.store(x);
         return { x[0], x[1], x[2], x[3] };
     }
 
-    auto unpack(Vec4f v) -> std::tuple<float, float, float, float>
+    std::tuple<float, float, float, float> unpack(Vec4f v)
     {
         float x[4];
         v.store(x);
         return { x[0], x[1], x[2], x[3] };
     }
 
-    auto split(Vec8f v) -> std::tuple<Vec4f, Vec4f>
+    std::tuple<Vec4f, Vec4f> split(Vec8f v)
     {
         return { v.get_low(), v.get_high() };
     }
@@ -58,7 +58,7 @@ namespace {
 // https://dbs.ifi.uni-heidelberg.de/files/Team/eschubert/publications/SSDBM18-covariance-authorcopy.pdf
 // merge covariance from individual data partitions A,B
 
-auto combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx) -> double
+double combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx)
 {
     auto [n0, n1, n2, n3] = unpack(sum_w);
     auto [s0, s1, s2, s3] = unpack(sum_x);
@@ -76,12 +76,12 @@ auto combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx) -> double
     return q01 + q23 + f * square(n01 * s23 - n23 * s01);
 }
 
-auto combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_xx) -> double
+double combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_xx)
 {
     return combine(to_double(sum_w), to_double(sum_x), to_double(sum_xx));
 }
 
-auto combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx) -> double
+double combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx)
 {
     auto [sum_w0, sum_w1] = split(sum_w);
     auto [sum_x0, sum_x1] = split(sum_x);
@@ -101,7 +101,8 @@ auto combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx) -> double
 }
 
 // combines four partitions into a single result
-auto combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d sum_xy) -> std::tuple<double, double, double>
+std::tuple<double, double, double>
+combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d sum_xy)
 {
     auto [n0, n1, n2, n3] = unpack(sum_w);
     auto [sx0, sx1, sx2, sx3] = unpack(sum_x);
@@ -132,8 +133,8 @@ auto combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, 
 
     return { sxx, syy, sxy };
 }
-
-auto combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_y, Vec4f sum_xx, Vec4f sum_yy, Vec4f sum_xy) -> std::tuple<double, double, double>
+std::tuple<double, double, double>
+combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_y, Vec4f sum_xx, Vec4f sum_yy, Vec4f sum_xy)
 {
     return combine(to_double(sum_w), to_double(sum_x), to_double(sum_y), to_double(sum_xx), to_double(sum_yy), to_double(sum_xy));
 }
@@ -141,7 +142,7 @@ auto combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_y, Vec4f sum_xx, Vec4f sum_yy, 
 // combines eight partitions into a single result
 auto combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_y, Vec8f sum_xx, Vec8f sum_yy, Vec8f sum_xy) -> std::tuple<double, double, double>
 {
-    auto [sum_w0, sum_w1] = split(sum_w);
+    auto [sum_w0, sum_w1]   = split(sum_w);
     auto [sum_x0, sum_x1]   = split(sum_x);
     auto [sum_y0, sum_y1]   = split(sum_y);
     auto [sum_xx0, sum_xx1] = split(sum_xx);
@@ -150,12 +151,13 @@ auto combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_y, Vec8f sum_xx, Vec8f sum_yy, 
     auto [qxx0, qyy0, qxy0] = combine(sum_w0, sum_x0, sum_y0, sum_xx0, sum_yy0, sum_xy0);
     auto [qxx1, qyy1, qxy1] = combine(sum_w1, sum_x1, sum_y1, sum_xx1, sum_yy1, sum_xy1);
 
-    double n0  = horizontal_add(sum_w0);
-    double n1  = horizontal_add(sum_w1);
-    double sx0 = horizontal_add(sum_x0);
-    double sx1 = horizontal_add(sum_x1);
-    double sy0 = horizontal_add(sum_y0);
-    double sy1 = horizontal_add(sum_y1);
+    // use to_double for additional precision
+    double n0  = horizontal_add(to_double(sum_w0));
+    double n1  = horizontal_add(to_double(sum_w1));
+    double sx0 = horizontal_add(to_double(sum_x0));
+    double sx1 = horizontal_add(to_double(sum_x1));
+    double sy0 = horizontal_add(to_double(sum_y0));
+    double sy1 = horizontal_add(to_double(sum_y1));
 
     double f   = 1. / (n0 * n1 * (n0 + n1));
     double sx  = n0 * sx1 - n1 * sx0;
