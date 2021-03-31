@@ -14,6 +14,9 @@ include(FeatureSummary)
 find_package(GSL)
 set_package_properties(GSL PROPERTIES TYPE OPTIONAL)
 
+find_package(Boost)
+set_package_properties(Boost PROPERTIES TYPE OPTIONAL)
+
 FetchContent_Declare(
     doctest
     URL https://raw.githubusercontent.com/onqtam/doctest/master/doctest/doctest.h
@@ -38,7 +41,9 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(doctest vectorclass nanobench)
 
-set(THIRDPARTY_INCLUDE_DIRS "${vectorclass_SOURCE_DIR}" "${nanobench_SOURCE_DIR}")
+set(THIRDPARTY_INCLUDE_DIRS "${vectorclass_SOURCE_DIR}" "${nanobench_SOURCE_DIR}" "${GSL_INCLUDE_DIRS}" "${Boost_INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/thirdparty/linasm/include")
+
+set(LINASM_LIBS "${PROJECT_SOURCE_DIR}/thirdparty/linasm/lib/")
 
 if(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
     set(VSTAT_INCLUDE_DIRS
@@ -54,8 +59,9 @@ target_include_directories(vstat INTERFACE ./include ${THIRDPARTY_INCLUDE_DIRS})
 target_compile_features(vstat INTERFACE cxx_std_17)
 
 add_executable(vstat-test tests/vstat.cpp)
-target_include_directories(vstat-test PRIVATE src/ ${GSL_INCLUDE_DIRS})
-target_link_libraries(vstat-test vstat GSL::gsl)
+target_include_directories(vstat-test PRIVATE src/ ${THIRDPARTY_INCLUDE_DIRS})
+target_link_directories(vstat-test PRIVATE "${LINASM_LIBS}")
+target_link_libraries(vstat-test vstat GSL::gsl linasm)
 target_compile_options(vstat-test PRIVATE "$<$<CONFIG:Debug>:-g>$<$<CONFIG:Release>:-O3;-g;-march=native>")
 
 add_test(NAME vstat-test COMMAND vstat-test)

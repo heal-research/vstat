@@ -30,3 +30,10 @@
 *.exe
 *.out
 *.app
+
+# Other folders
+build
+thirdparty
+.clangd
+compile_commands.json
+tests/doctest.h

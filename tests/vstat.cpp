@@ -1,223 +1,132 @@
-#include "variance.hpp"
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
+
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics.hpp>
 
 #define ANKERL_NANOBENCH_IMPLEMENT
 #include "nanobench.h"
 
+#include <iostream>
+#include <memory>
 #include <random>
 #include <vector>
-#include <iostream>
 
 #include "gsl/gsl_statistics_double.h"
 #include "gsl/gsl_statistics_float.h"
 
+#include <chrono>
+
 #include "vstat.hpp"
 
+#include "Statistics.h"
+
+namespace ba = boost::accumulators;
 namespace nb = ankerl::nanobench;
 
-template<typename T>
-double VarianceGSL(nb::Bench& bench, std::vector<T> const& x)
+struct Foo {
+    double value;
+};
+
+TEST_SUITE("usage")
 {
-    double c = 0;
-    size_t i = 0;
-    bench.batch(x.size()).run("GSL variance " + std::string(typeid(T).name()) + " " + std::to_string(x.size()), [&]() {
-        double var;
-        if constexpr(std::is_same_v<T, float>)
+    TEST_CASE("univariate")
+    {
+        std::vector<float> values{ 1.0, 2.0, 3.0, 4.0 };
+        std::vector<float> weights{ 2.0, 4.0, 6.0, 8.0 };
+
+        SUBCASE("batch") {
+            auto stats = univariate::accumulate<float>(values.begin(), values.end());
+            std::cout << "stats:\n" << stats << "\n";
+        }
+
+        SUBCASE("batch weighted") {
+            auto stats = univariate::accumulate<float>(values.begin(), values.end(), weights.begin());
+            std::cout << "stats:\n" << stats << "\n";
+        }
+
+        SUBCASE("batch projection")
         {
-            var = gsl_stats_float_variance(x.data(), 1, x.size());
-        } else {
-            var = gsl_stats_variance(x.data(), 1, x.size());
+            struct Foo {
+                float value;
+            };
+
+            Foo foos[] = { {1}, {3}, {5}, {2}, {8} };
+            auto stats = univariate::accumulate<float>(foos, std::size(foos), [](auto const& foo) { return foo.value; });
+            std::cout << "stats:\n" << stats << "\n";
         }
-        c += var;
-        i += 1;
-    });
-    return c / i;
-}
 
-template<typename T>
-double CorrelationGSL(nb::Bench& bench, std::vector<T> const& x, std::vector<T> const& y)
-{
-    double c = 0;
-    size_t i = 0;
-    bench.batch(x.size()).run("GSL variance " + std::string(typeid(T).name()) + " " + std::to_string(x.size()), [&]() {
-        double corr;
-        if constexpr(std::is_same_v<T, float>)
-        {
-            corr = gsl_stats_float_correlation(x.data(), 1, y.data(), 1, x.size());
-        } else {
-            corr = gsl_stats_correlation(x.data(), 1, y.data(), 1, x.size());
+        SUBCASE("accumulator") {
+            univariate_accumulator<float> acc(1.0);
+            acc(2.0);
+            acc(3.0);
+            acc(4.0);
+            auto stats = univariate_statistics(acc);
+            std::cout << "stats:\n" << stats << "\n";
         }
-        c += corr;
-        i += 1;
-    });
-    return c / i;
-}
 
-template<typename T>
-double Variance(nb::Bench& bench, std::vector<T> const& x)
-{
-    double c = 0;
-    size_t i = 0;
-    bench.batch(x.size()).run("variance " + std::string(typeid(T).name()) + " " + std::to_string(x.size()), [&]() {
-        VarianceCalculator calc;
-        T w{1.0};
-        for (auto v : x) {
-            calc.Add(v, w);
+        SUBCASE("accumulator weighted") {
+            univariate_accumulator<float> acc(1.0, 2.0);
+            acc(2.0, 4.0);
+            acc(3.0, 6.0);
+            auto stats = univariate_statistics(acc);
+            std::cout << "stats:\n" << stats << "\n";
         }
-        c += calc.NaiveVariance();
-        i += 1;
-    });
-    return c / i;
-}
+    }
 
-template<typename T>
-double VarianceSIMD(nb::Bench& bench, std::vector<T> const& x)
-{
-    double c = 0;
-    size_t i = 0;
-    bench.batch(x.size()).run("variance simd " + std::string(typeid(T).name()) + " " + std::to_string(x.size()), [&]() {
-        VarianceCalculator calc;
-        calc.Add(x.data(), x.size());
-        c += calc.NaiveVariance();
-        i += 1;
-    });
-    return c / i;
-}
+    TEST_CASE("bivariate")
+    {
+        float x[] = { 1., 1., 2., 6. };
+        float y[] = { 2., 4., 3., 1. };
+        size_t n = std::size(x);
 
-template<typename T>
-double Correlation(nb::Bench& bench, std::vector<T> const& x, std::vector<T> const& y)
-{
-    double c = 0;
-    size_t i = 0;
-    bench.run("correlation " + std::string(typeid(T).name()) + " " + std::to_string(x.size()), [&]() {
-        CorrelationCalculator calc;
-        for (int j = 0; j < x.size(); ++j) {
-            calc.Add(x[j], y[j]);
+        SUBCASE("batch") {
+            auto stats = bivariate::accumulate<float>(x, y, n);
+            std::cout << "stats:\n" << stats << "\n";
         }
-        c += calc.Correlation();
-        i += 1;
-    });
-    return c / i;
-}
 
-template<typename T>
-double CorrelationSIMD(nb::Bench& bench, std::vector<T> const& x, std::vector<T> const& y)
-{
-    double c = 0;
-    size_t i = 0;
-    bench.run("correlation simd " + std::string(typeid(T).name()) + " " + std::to_string(x.size()), [&]() {
-        CorrelationCalculator calc;
-        calc.Add(x.data(), y.data(), x.size());
-        c += calc.Correlation();
-        i += 1;
-    });
-    return c / i;
+        SUBCASE("batch projection") {
+            struct Foo {
+                float value;
+            };
+
+            struct Bar {
+                int value;
+            };
+
+            Foo foos[] = { {1}, {3}, {5}, {2}, {8} };
+            Bar bars[] = { {3}, {2}, {1}, {4}, {11} };
+
+            auto stats = bivariate::accumulate<float>(foos, bars, std::size(foos), [](auto const& foo) { return foo.value; }, [](auto const& bar) { return bar.value; });
+            std::cout << "stats:\n" << stats << "\n";
+        }
+
+        SUBCASE("accumulator") {
+            bivariate_accumulator<float> acc(x[0], y[0]);
+            for (size_t i = 1; i < n; ++i) {
+                acc(x[i], y[i]);
+            }
+            bivariate_statistics stats(acc);
+            std::cout << "stats:\n" << stats << "\n";
+        }
+
+    }
 }
 
 TEST_SUITE("correctness")
 {
-    TEST_CASE("mean-variance")
+    TEST_CASE("univariate")
     {
-        const size_t n = int(1e6);
+        const int n = int(1e6);
 
-        std::default_random_engine rng(12345);
-        std::uniform_real_distribution<double> dist(0, 1);
-
-        std::vector<double> xd(n);
         std::vector<float> xf(n);
-        std::vector<double> wd(n, 1.0);
-        std::vector<float> wf(n, 1.0);
+        std::vector<double> xd(n);
 
-        std::generate(xd.begin(), xd.end(), [&]() { return dist(rng); });
-        std::copy(xd.begin(), xd.end(), xf.begin());
+        std::vector<float> yf(n);
+        std::vector<double> yd(n);
 
-        // GSL as baseline
-        auto gsl_mean_flt = gsl_stats_float_mean(xf.data(), 1, xf.size());
-        auto gsl_mean_dbl = gsl_stats_mean(xd.data(), 1, xd.size());
-        auto gsl_var_flt  = gsl_stats_float_variance(xf.data(), 1, xf.size());
-        auto gsl_var_dbl  = gsl_stats_variance(xd.data(), 1, xd.size());
-
-        SUBCASE("mean")
-        {
-            VarianceCalculator vc;
-            vc.Add(xf.data(), wf.data(), xf.size());
-            auto vst_mean_flt_simd = vc.Mean();
-            vc.Reset();
-
-            for (auto v : xf) { vc.Add(v); }
-            auto vst_mean_flt = vc.Mean();
-            CHECK(std::abs(gsl_mean_flt - vc.Mean()) < 1e-6);
-
-            vc.Reset();
-            vc.Add(xd.data(), xd.size());
-            CHECK(std::abs(gsl_mean_dbl - vc.Mean()) < 1e-6);
-
-            vc.Reset();
-            vc.Add(xd.data(), wd.data(), xd.size());
-            CHECK(std::abs(gsl_mean_dbl - vc.Mean()) < 1e-6);
-        }
-
-        SUBCASE("variance")
-        {
-
-            VarianceCalculator vc;
-            vc.Add(xf.data(), xf.size());
-            auto vst_var_flt = vc.NaiveVariance();
-            CHECK(std::abs(gsl_var_flt - vst_var_flt) < 1e-5);
-
-            vc.Reset(); vc.Add(xd.data(), xd.size());
-            auto vst_var_dbl = vc.NaiveVariance();
-            CHECK(std::abs(gsl_var_dbl - vst_var_dbl) < 1e-6);
-        }
-    }
-
-}
-
-TEST_SUITE("performance")
-{
-    TEST_CASE("mean-variance")
-    {
-        nb::Bench bench;
-        bench.performanceCounters(true).minEpochIterations(100);
-
-        std::default_random_engine rng(12345);
-        std::uniform_real_distribution<double> dist(0, 1);
-
-        for (size_t n = size_t(1e2); n <= size_t(1e6); n *= 10)
-        {
-            std::vector<double> xd(n);
-            std::vector<float> xf(n);
-
-            std::generate(xd.begin(), xd.end(), [&]() { return dist(rng); });
-            std::copy(xd.begin(), xd.end(), xf.begin());
-
-            // double
-            VarianceGSL<double>(bench, xd);
-            Variance<double>(bench, xd);
-            VarianceSIMD<double>(bench, xd);
-
-            // float
-            VarianceGSL<float>(bench, xf);
-            Variance<float>(bench, xf);
-            VarianceSIMD<float>(bench, xf);
-        }
-    }
-
-    TEST_CASE("correlation")
-    {
-        constexpr int N = int(11111);
-
-        nb::Bench bench;
-        bench.performanceCounters(true).minEpochIterations(100).relative(true);
-
-        std::default_random_engine rng(12345);
-        std::uniform_real_distribution<double> dist(0, 1);
-
-        std::vector<double> xd(N);
-        std::vector<double> yd(N);
-        std::vector<float> xf(N);
-        std::vector<float> yf(N);
+        std::default_random_engine rng(1234);
+        std::uniform_real_distribution<double> dist(-1, 1);
 
         std::generate(xd.begin(), xd.end(), [&]() { return dist(rng); });
         std::generate(yd.begin(), yd.end(), [&]() { return dist(rng); });
@@ -225,18 +134,255 @@ TEST_SUITE("performance")
         std::copy(xd.begin(), xd.end(), xf.begin());
         std::copy(yd.begin(), yd.end(), yf.begin());
 
-        Correlation<double>(bench, xd, yd);
-        Correlation<float>(bench, xf, yf);
-        CorrelationSIMD<double>(bench, xd, yd);
-        CorrelationSIMD<float>(bench, xf, yf);
-        CorrelationGSL<double>(bench, xd, yd);
-        CorrelationGSL<float>(bench, xf, yf);
+        std::vector<Foo> ff(n);
+        for (int i = 0; i < n; ++i) {
+            ff[i].value = xd[i];
+        }
 
-        Variance<double>(bench, xd);
-        Variance<float>(bench, xf);
-        VarianceSIMD<double>(bench, xd);
-        VarianceSIMD<float>(bench, xf);
-        VarianceGSL<double>(bench, xd);
-        VarianceGSL<float>(bench, xf);
+        auto gsl_var_flt = gsl_stats_float_variance(xf.data(), 1, xf.size());
+        auto gsl_mean_flt = gsl_stats_float_mean(xf.data(), 1, xf.size());
+
+        auto stats = univariate::accumulate<float>(xd.begin(), xd.end(), detail::identity{});
+        CHECK(std::abs(stats.mean - gsl_mean_flt) < 1e-6);
+        CHECK(std::abs(stats.variance - gsl_var_flt) < 1e-5);
+
+        auto gsl_var_dbl = gsl_stats_variance(xd.data(), 1, xd.size());
+        auto gsl_mean_dbl = gsl_stats_mean(xd.data(), 1, xd.size());
+        stats = univariate::accumulate<double>(xd.begin(), xd.end(), detail::identity {});
+        CHECK(std::abs(stats.mean - gsl_mean_dbl) < 1e-6);
+        CHECK(std::abs(stats.variance - gsl_var_dbl) < 1e-6);
+
+        stats = univariate::accumulate<double>(ff.begin(), ff.end(), [](auto const& f) { return f.value; });
+        CHECK(std::abs(stats.mean - gsl_mean_dbl) < 1e-6);
+
+        auto linasm_mean_flt = Statistics::Mean(xf.data(), n);
+        auto linasm_var_flt = Statistics::Variance(xf.data(), n, linasm_mean_flt);
+        CHECK(std::abs(linasm_mean_flt - gsl_mean_flt) < 1e-6);
+        CHECK(std::abs(linasm_var_flt - gsl_var_flt) < 1e-6);
+        auto linasm_mean_dbl = Statistics::Mean(xd.data(), n);
+        auto linasm_var_dbl = Statistics::Variance(xd.data(), n, linasm_mean_dbl);
+        CHECK(std::abs(linasm_mean_dbl - gsl_mean_dbl) < 1e-6);
+        CHECK(std::abs(linasm_var_dbl - gsl_var_dbl) < 1e-6);
+
+        auto gsl_corr_flt = gsl_stats_float_correlation(xf.data(), 1, yf.data(), 1, n);
+        auto gsl_corr_dbl = gsl_stats_correlation(xd.data(), 1, yd.data(), 1, n);
+
+        auto gsl_cov_flt = gsl_stats_float_covariance(xf.data(), 1, yf.data(), 1, n);
+        auto gsl_cov_dbl = gsl_stats_covariance(xd.data(), 1, yd.data(), 1, n);
+
+        auto bstats = bivariate::accumulate<float>(xd.begin(), xd.end(), yd.begin());
+        CHECK(std::abs(gsl_corr_flt - bstats.correlation) < 1e-6);
+        CHECK(std::abs(gsl_cov_flt - bstats.covariance) < 1e-6);
+
+        bstats = bivariate::accumulate<float>(xd.begin(), xd.end(), yd.begin());
+        CHECK(std::abs(gsl_corr_dbl - bstats.correlation) < 1e-6);
+        CHECK(std::abs(gsl_cov_dbl - bstats.covariance) < 1e-6);
+
+        auto stats_x = univariate::accumulate<float>(xd.begin(), xd.end());
+        auto stats_y = univariate::accumulate<float>(yd.begin(), yd.end());
+
+        CHECK(bstats.mean_x == stats_x.mean);
+        CHECK(bstats.mean_y == stats_y.mean);
+        CHECK(bstats.sum_x == stats_x.sum);
+        CHECK(bstats.sum_y == stats_y.sum);
+
+        auto xm = Statistics::Mean(xf.data(), n);
+        auto ym = Statistics::Mean(yf.data(), n);
+        auto linasm_corr_flt = Statistics::PearsonCorrelation(xf.data(), yf.data(), n, xm, ym);
+        CHECK(std::abs(linasm_corr_flt - gsl_corr_flt) < 1e-6);
+    }
+}
+
+TEST_SUITE("performance")
+{
+    TEST_CASE("univariate")
+    {
+        const int n = int(1e6);
+
+        std::vector<double> v1(n), v2(n);
+        std::vector<float> u1(n), u2(n);
+
+        auto xd = v1.data();
+        auto yd = v2.data();
+        auto xf = u1.data();
+        auto yf = u2.data();
+
+        std::default_random_engine rng(1234);
+        std::uniform_real_distribution<double> dist(-1, 1);
+
+        std::generate(xd, xd + n, [&]() { return dist(rng); });
+        std::generate(yd, yd + n, [&]() { return dist(rng); });
+
+        std::copy(xd, xd + n, xf);
+        std::copy(yd, yd + n, yf);
+
+        std::vector<Foo> ff(n);
+        for (int i = 0; i < n; ++i) {
+            ff[i].value = xd[i];
+        }
+
+        ankerl::nanobench::Bench b;
+        b.performanceCounters(true).minEpochIterations(100).batch(n);
+
+        // print some runtime stats for different data sizes
+        std::vector<int> sizes { 1000, 10000 };
+        int step = int(1e5);
+        for (int s = step; s <= n; s += step) {
+            sizes.push_back(s);
+        }
+
+        SUBCASE("variance") {
+            double var = 0, count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("vstat variance float " + std::to_string(s), [&]() {
+                    ++count;
+                    var += univariate::accumulate<float>(xf, s).variance;
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("vstat variance double " + std::to_string(s), [&]() {
+                    ++count;
+                    var += univariate::accumulate<double>(xd, s).variance;
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("linasm variance float " + std::to_string(s), [&]() {
+                    ++count;
+                    auto mean = Statistics::Mean(xf, s);
+                    var += Statistics::Variance(xf, s, mean);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("linasm variance double " + std::to_string(s), [&]() {
+                    ++count;
+                    auto mean = Statistics::Mean(xd, s);
+                    var += Statistics::Variance(xd, s, mean);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("boost variance float " + std::to_string(s), [&]() {
+                    ++count;
+                    ba::accumulator_set<float, ba::features<ba::tag::variance>> acc;
+                    for (int i = 0; i < s; ++i) {
+                        acc(xf[i]);
+                    }
+                    var += ba::variance(acc);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("boost variance double " + std::to_string(s), [&]() {
+                    ++count;
+                    ba::accumulator_set<double, ba::features<ba::tag::variance>> acc;
+                    for (int i = 0; i < s; ++i) {
+                        acc(xd[i]);
+                    }
+                    var += ba::variance(acc);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("gsl variance float " + std::to_string(s), [&]() {
+                    ++count;
+                    var += gsl_stats_float_variance(xf, 1, s);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("gsl variance double " + std::to_string(s), [&]() {
+                    ++count;
+                    var += gsl_stats_variance(xd, 1, s);
+                });
+            }
+        }
+
+        SUBCASE("covariance") {
+            double var = 0, count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("vstat covariance float " + std::to_string(s), [&]() {
+                    ++count;
+                    var += bivariate::accumulate<float>(xf, yf, s).covariance;
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("vstat covariance double " + std::to_string(s), [&]() {
+                    ++count;
+                    var += bivariate::accumulate<double>(xd, yd, s).covariance;
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("linasm covariance float " + std::to_string(s), [&]() {
+                    ++count;
+                    auto xm = Statistics::Mean(xf, s);
+                    auto ym = Statistics::Mean(yf, s);
+                    var += Statistics::Covariance(xf, yf, s, xm, ym);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("linasm covariance double " + std::to_string(s), [&]() {
+                    ++count;
+                    auto xm = Statistics::Mean(xd, s);
+                    auto ym = Statistics::Mean(yd, s);
+                    var += Statistics::Covariance(xd, yd, s, xm, ym);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("boost covariance float " + std::to_string(s), [&]() {
+                    ++count;
+                    ba::accumulator_set<float, ba::stats<ba::tag::covariance<float, ba::tag::covariate1>>> acc;
+                    for (int i = 0; i < s; ++i) {
+                        acc(xf[i], ba::covariate1 = yf[i]);
+                    }
+                    var += ba::covariance(acc);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("boost covariance double " + std::to_string(s), [&]() {
+                    ++count;
+                    ba::accumulator_set<double, ba::stats<ba::tag::covariance<double, ba::tag::covariate1>>> acc;
+                    for (int i = 0; i < s; ++i) {
+                        acc(xd[i], ba::covariate1 = yd[i]);
+                    }
+                    var += ba::covariance(acc);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("gsl covariance float " + std::to_string(s), [&]() {
+                    ++count;
+                    var += gsl_stats_float_covariance(xf, 1, yf, 1, s);
+                });
+            }
+
+            var = count = 0;
+            for (auto s : sizes) {
+                b.batch(s).run("gsl covariance double " + std::to_string(s), [&]() {
+                    ++count;
+                    var += gsl_stats_covariance(xd, 1, yd, 1, s);
+                });
+            }
+        }
     }
 }

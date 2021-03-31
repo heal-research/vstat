@@ -5,29 +5,12 @@
 #include <cmath>
 #include <iostream>
 #include <tuple>
-#include <type_traits>
 
 #include "vectorclass.h"
-
-#if defined(VSTAT_NAMESPACE)
-namespace VSTAT_NAMESPACE {
-#endif
-
-namespace detail {
-#define EXPECT(cond)                                                                                    \
-    if (!(cond)) {                                                                                      \
-        std::cerr << "precondition " << #cond << " failed at " << __FILE__ << ": " << __LINE__ << "\n"; \
-        std::terminate();                                                                               \
-    }
-
-#define ENSURE(cond)                                                                                     \
-    if (!(cond)) {                                                                                       \
-        std::cerr << "postcondition " << #cond << " failed at " << __FILE__ << ": " << __LINE__ << "\n"; \
-        std::terminate();                                                                                \
-    }
-}
+#include "util.hpp"
 
 namespace {
+    // utility
     template<typename T>
     auto square(T a) {
         return a * a;

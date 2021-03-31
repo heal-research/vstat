@@ -12,8 +12,10 @@ pkgs.gcc10Stdenv.mkDerivation {
         doctest
         clang_10
         ninja
+        openblas
         gsl
         pkg-config
+        boost
       ];
     }
 
