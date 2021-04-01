@@ -71,12 +71,6 @@ namespace detail {
 
     template<typename T>
     inline constexpr bool is_iterator_v = is_iterator<T>::value;
-
-    //template<typename T>
-    //using value_type = std::conditional_t<std::is_pointer_v<T>,
-    //      std::remove_pointer_t<T>,
-    //      //T>;
-    //      std::conditional_t<detail::is_iterator_v<T>, typename std::iterator_traits<T>::value_type, std::void_t<T>>>;
 }
 
 #if defined(VSTAT_NAMESPACE)
