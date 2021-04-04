@@ -36,7 +36,7 @@ struct univariate_accumulator {
         return acc;
     }
 
-    void reset()
+    inline void reset()
     {
         sum_w = sum_x = sum_xx = 0.0;
     }
@@ -111,7 +111,7 @@ struct univariate_statistics {
     }
 };
 
-std::ostream& operator<<(std::ostream& os, univariate_statistics const& stats)
+inline std::ostream& operator<<(std::ostream& os, univariate_statistics const& stats)
 {
     os << "count:          \t" << stats.count
        << "\nsum:            \t" << stats.sum

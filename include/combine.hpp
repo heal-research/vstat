@@ -41,7 +41,7 @@ namespace {
 // https://dbs.ifi.uni-heidelberg.de/files/Team/eschubert/publications/SSDBM18-covariance-authorcopy.pdf
 // merge covariance from individual data partitions A,B
 
-double combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx)
+inline double combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx)
 {
     auto [n0, n1, n2, n3] = unpack(sum_w);
     auto [s0, s1, s2, s3] = unpack(sum_x);
@@ -59,12 +59,12 @@ double combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx)
     return q01 + q23 + f * square(n01 * s23 - n23 * s01);
 }
 
-double combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_xx)
+inline double combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_xx)
 {
     return combine(to_double(sum_w), to_double(sum_x), to_double(sum_xx));
 }
 
-double combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx)
+inline double combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx)
 {
     auto [sum_w0, sum_w1] = split(sum_w);
     auto [sum_x0, sum_x1] = split(sum_x);
@@ -84,7 +84,7 @@ double combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx)
 }
 
 // combines four partitions into a single result
-std::tuple<double, double, double>
+inline std::tuple<double, double, double>
 combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d sum_xy)
 {
     auto [n0, n1, n2, n3] = unpack(sum_w);
@@ -117,13 +117,14 @@ combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d
     return { sxx, syy, sxy };
 }
 std::tuple<double, double, double>
-combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_y, Vec4f sum_xx, Vec4f sum_yy, Vec4f sum_xy)
+inline combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_y, Vec4f sum_xx, Vec4f sum_yy, Vec4f sum_xy)
 {
     return combine(to_double(sum_w), to_double(sum_x), to_double(sum_y), to_double(sum_xx), to_double(sum_yy), to_double(sum_xy));
 }
 
 // combines eight partitions into a single result
-auto combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_y, Vec8f sum_xx, Vec8f sum_yy, Vec8f sum_xy) -> std::tuple<double, double, double>
+inline std::tuple<double, double, double>
+combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_y, Vec8f sum_xx, Vec8f sum_yy, Vec8f sum_xy)
 {
     auto [sum_w0, sum_w1]   = split(sum_w);
     auto [sum_x0, sum_x1]   = split(sum_x);

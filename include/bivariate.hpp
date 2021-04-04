@@ -47,7 +47,7 @@ struct bivariate_accumulator {
         return acc;
     }
 
-    void reset()
+    inline void reset()
     {
         sum_w = sum_x = sum_y = sum_xx = sum_yy = sum_xy = 0.0;
     }
@@ -164,7 +164,7 @@ struct bivariate_statistics {
     }
 };
 
-std::ostream& operator<<(std::ostream& os, bivariate_statistics const& stats)
+inline std::ostream& operator<<(std::ostream& os, bivariate_statistics const& stats)
 {
     os << "count:            \t" << stats.count
        << "\nsum_x:            \t" << stats.sum_x
