@@ -143,7 +143,7 @@ inline univariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt
         auto [sw, sx, sxx] = acc.stats();
         auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2) {
-            scalar_acc(op(f1(*first1++), f2(*first2++)));
+            scalar_acc(op(f1(*first1), f2(*first2)));
         }
         return univariate_statistics(scalar_acc);
     }
@@ -194,8 +194,8 @@ inline univariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
         auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
-        for (; first1 < last1; ++first1, ++first2) {
-            scalar_acc(op(f1(*first1++), f2(*first2++)), *first3++);
+        for (; first1 < last1; ++first1, ++first2, ++first3) {
+            scalar_acc(op(f1(*first1), f2(*first2)), *first3);
         }
         return univariate_statistics(scalar_acc);
     }
