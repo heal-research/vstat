@@ -233,7 +233,7 @@ template<typename T, typename X, typename Y, typename BinaryOp, typename F1 = de
     , bool> = true>
 inline univariate_statistics accumulate(X const* x, Y const* y, size_t n, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{})
 {
-    return univariate::accumulate(x, x + n, y, op, f1, f2);
+    return univariate::accumulate<T>(x, x + n, y, op, f1, f2);
 }
 
 template<typename T, typename X, typename Y, typename W, typename BinaryOp, typename F1 = detail::identity, typename F2 = detail::identity,
@@ -246,7 +246,7 @@ template<typename T, typename X, typename Y, typename W, typename BinaryOp, type
     , bool> = true>
 inline univariate_statistics accumulate(X const* x, Y const* y, W const* w, size_t n, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{})
 {
-    return univariate::accumulate(x, x + n, y, w, op, f1, f2);
+    return univariate::accumulate<T>(x, x + n, y, w, op, f1, f2);
 }
 } // namespace univariate
 
