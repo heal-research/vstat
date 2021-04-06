@@ -5,17 +5,18 @@ pkgs.gcc10Stdenv.mkDerivation {
   hardeningDisable = [ "all" ];
 
   buildInputs = with pkgs; [
-        gdb
-        valgrind
-        linuxPackages.perf
+        boost
+        clang_10
         cmake
         doctest
-        clang_10
+        gdb
+        gsl
+        linasm
+        linuxPackages.perf
         ninja
         openblas
-        gsl
         pkg-config
-        boost
+        valgrind
       ];
     }
 
