@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright 2020-2021 Heal Research
+
 #ifndef VSTAT_UTIL_HPP
 #define VSTAT_UTIL_HPP
 

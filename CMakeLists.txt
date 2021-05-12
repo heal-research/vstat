@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: Copyright 2020-2021 Heal Research
+
 cmake_minimum_required(VERSION 3.12)
 
 project(
