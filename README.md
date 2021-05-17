@@ -200,7 +200,7 @@ The following libraries have been used for performance comparison in the univari
 #### Methodology
 
 - we generate 1M values uniformly distributed between [-1, 1] and save them into a `double` and a `float` array
-- increase the data size in 100k increments and benchmark the performace for each method using [nanobench](https://nanobench.ankerl.com/)
+- increase the data size in 100k increments and benchmark the performance for each method using [nanobench](https://nanobench.ankerl.com/)
 
 #### Notes
 
