@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: Copyright 2020-2021 Heal Research
 
 let
-  pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/refs/heads/master.zip") { };
+  pkgs = import <nixos> {};
 in
 pkgs.gcc11Stdenv.mkDerivation {
   name = "vstat-env";
