@@ -50,11 +50,6 @@ struct bivariate_accumulator {
         return acc;
     }
 
-    inline void reset()
-    {
-        sum_w = sum_x = sum_y = sum_xx = sum_yy = sum_xy = 0.0;
-    }
-
     inline void operator()(T x, T y)
     {
         T dx = x * sum_w - sum_x;

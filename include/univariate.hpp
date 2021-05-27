@@ -39,11 +39,6 @@ struct univariate_accumulator {
         return acc;
     }
 
-    inline void reset()
-    {
-        sum_w = sum_x = sum_xx = 0.0;
-    }
-
     inline void operator()(T x) noexcept
     {
         T dx = sum_w * x - sum_x;
