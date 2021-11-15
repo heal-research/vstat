@@ -9,7 +9,7 @@
 #include <iostream>
 #include <tuple>
 
-#include "vectorclass.h"
+#include "vectorclass/vectorclass.h"
 #include "util.hpp"
 
 namespace {

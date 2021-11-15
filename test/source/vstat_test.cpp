@@ -20,7 +20,7 @@
 
 #include <chrono>
 
-#include "vstat.hpp"
+#include "vstat/vstat.hpp"
 
 #include "Statistics.h"
 

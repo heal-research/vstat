@@ -208,10 +208,10 @@ The following libraries have been used for performance comparison in the univari
 - _linasm_ methods for variance and covariance require precomputed array means, so means computation is factored into the benchmarks
 - hardware: Ryzen 9 5950X
 
-![](./tests/benchmarks/var_float.png)
-![](./tests/benchmarks/var_double.png)
-![](./tests/benchmarks/cov_float.png)
-![](./tests/benchmarks/cov_double.png)
+![](./test/benchmarks/var_float.png)
+![](./test/benchmarks/var_double.png)
+![](./test/benchmarks/cov_float.png)
+![](./test/benchmarks/cov_double.png)
 
 ### Acknowledgements
 
