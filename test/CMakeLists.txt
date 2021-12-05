@@ -5,8 +5,8 @@ project(vstatTests LANGUAGES CXX)
 include(../cmake/project-is-top-level.cmake)
 include(../cmake/windows-set-path.cmake)
 
-# ---- dependencies for testing/benchmarks ----
-find_package(PkgConfig REQUIRED)
+# ---- Doctest ----
+find_package(doctest REQUIRED)
 
 # ---- GNU Scientific Library ----
 find_package(GSL REQUIRED)
@@ -23,7 +23,7 @@ if(PROJECT_IS_TOP_LEVEL)
 endif()
 
 add_executable(vstat_test source/vstat_test.cpp)
-target_link_libraries(vstat_test PRIVATE vstat::vstat GSL::gsl ${LINASM_LIBRARIES})
+target_link_libraries(vstat_test PRIVATE doctest::doctest vstat::vstat GSL::gsl ${LINASM_LIBRARIES})
 target_compile_features(vstat_test PRIVATE cxx_std_17)
 
 add_test(NAME vstat_test COMMAND vstat_test)

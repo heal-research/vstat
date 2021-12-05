@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright 2019-2021 Heal Research
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "doctest.h"
+#include <doctest/doctest.h>
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics.hpp>
