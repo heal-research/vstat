@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     vstat
-    VERSION 1.0.0-beta 
+    VERSION 1.0.0
     DESCRIPTION "C++17 library of computationally efficient methods for calculating sample statistics (mean, variance, covariance, correlation)."
     HOMEPAGE_URL "https://github.com/heal-research/vstat"
     LANGUAGES CXX
