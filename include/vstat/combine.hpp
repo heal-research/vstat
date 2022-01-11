@@ -19,39 +19,35 @@ namespace {
         return a * a;
     }
 
-    std::tuple<double, double, double, double> unpack(Vec4d v)
+    template<typename T, std::enable_if_t<detail::is_any_v<T, Vec4f, Vec4d>, bool> = true>
+    auto unpack(T v) -> auto
     {
-        double x[4];
-        v.store(x);
-        return { x[0], x[1], x[2], x[3] };
+        std::array<std::conditional_t<std::is_same_v<T, Vec4f>, float, double>, 4> x{};
+        v.store(x.data());
+        return std::make_tuple(x[0], x[1], x[2], x[3]);
     }
 
-    std::tuple<float, float, float, float> unpack(Vec4f v)
-    {
-        float x[4];
-        v.store(x);
-        return { x[0], x[1], x[2], x[3] };
-    }
-
-    std::tuple<Vec4f, Vec4f> split(Vec8f v)
+    auto split(Vec8f v) -> std::tuple<Vec4f, Vec4f>
     {
         return { v.get_low(), v.get_high() };
     }
-}
+} // namespace
 
 // The code below is based on:
 // Schubert et al. - Numerically Stable Parallel Computation of (Co-)Variance, p. 4, eq. 22-26
 // https://dbs.ifi.uni-heidelberg.de/files/Team/eschubert/publications/SSDBM18-covariance-authorcopy.pdf
 // merge covariance from individual data partitions A,B
 
-inline double combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx)
+inline auto combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx) -> double
 {
     auto [n0, n1, n2, n3] = unpack(sum_w);
     auto [s0, s1, s2, s3] = unpack(sum_x);
     auto [q0, q1, q2, q3] = unpack(sum_xx);
 
-    double n01 = n0 + n1, s01 = s0 + s1;
-    double n23 = n2 + n3, s23 = s2 + s3;
+    double n01 = n0 + n1;
+    double s01 = s0 + s1;
+    double n23 = n2 + n3;
+    double s23 = s2 + s3;
 
     double f01 = 1. / (n0 * n01 * n1);
     double f23 = 1. / (n2 * n23 * n3);
@@ -62,12 +58,12 @@ inline double combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx)
     return q01 + q23 + f * square(n01 * s23 - n23 * s01);
 }
 
-inline double combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_xx)
+inline auto combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_xx) -> double
 {
     return combine(to_double(sum_w), to_double(sum_x), to_double(sum_xx));
 }
 
-inline double combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx)
+inline auto combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx) -> double
 {
     auto [sum_w0, sum_w1] = split(sum_w);
     auto [sum_x0, sum_x1] = split(sum_x);
@@ -87,8 +83,8 @@ inline double combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx)
 }
 
 // combines four partitions into a single result
-inline std::tuple<double, double, double>
-combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d sum_xy)
+inline auto
+combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d sum_xy) -> std::tuple<double, double, double> // NOLINT
 {
     auto [n0, n1, n2, n3] = unpack(sum_w);
     auto [sx0, sx1, sx2, sx3] = unpack(sum_x);
@@ -97,8 +93,13 @@ combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d
     auto [syy0, syy1, syy2, syy3] = unpack(sum_yy);
     auto [sxy0, sxy1, sxy2, sxy3] = unpack(sum_xy);
 
-    double n01 = n0 + n1, sx01 = sx0 + sx1, sy01 = sy0 + sy1;
-    double n23 = n2 + n3, sx23 = sx2 + sx3, sy23 = sy2 + sy3;
+    double n01 = n0 + n1;
+    double sx01 = sx0 + sx1;
+    double sy01 = sy0 + sy1;
+
+    double n23 = n2 + n3;
+    double sx23 = sx2 + sx3;
+    double sy23 = sy2 + sy3;
 
     double f01 = 1. / (n0 * n01 * n1);
     double f23 = 1. / (n2 * n23 * n3);
@@ -119,15 +120,15 @@ combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d
 
     return { sxx, syy, sxy };
 }
-std::tuple<double, double, double>
-inline combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_y, Vec4f sum_xx, Vec4f sum_yy, Vec4f sum_xy)
+auto
+inline combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_y, Vec4f sum_xx, Vec4f sum_yy, Vec4f sum_xy) -> std::tuple<double, double, double>
 {
     return combine(to_double(sum_w), to_double(sum_x), to_double(sum_y), to_double(sum_xx), to_double(sum_yy), to_double(sum_xy));
 }
 
 // combines eight partitions into a single result
-inline std::tuple<double, double, double>
-combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_y, Vec8f sum_xx, Vec8f sum_yy, Vec8f sum_xy)
+inline auto
+combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_y, Vec8f sum_xx, Vec8f sum_yy, Vec8f sum_xy) -> std::tuple<double, double, double> // NOLINT
 {
     auto [sum_w0, sum_w1]   = split(sum_w);
     auto [sum_x0, sum_x1]   = split(sum_x);

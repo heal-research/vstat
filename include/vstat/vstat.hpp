@@ -30,7 +30,7 @@ inline univariate_statistics accumulate(InputIt1 first, InputIt1 last, F&& f = F
 
     if (n < s) {
         univariate_accumulator<T> scalar_acc(std::invoke(f, *first++));
-        while (first < last) scalar_acc(std::invoke(f, *first++));
+        while (first < last) { scalar_acc(std::invoke(f, *first++)); }
         return univariate_statistics(scalar_acc);
     }
 

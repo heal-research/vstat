@@ -287,15 +287,19 @@ TEST_SUITE("performance")
     {
         const int n = int(1e6);
 
-        std::vector<double> v1(n), v2(n), v3(n);
-        std::vector<float> u1(n), u2(n), u3(n);
+        std::vector<double> v1(n);
+        std::vector<double> v2(n);
+        std::vector<double> v3(n);
+        std::vector<float> u1(n);
+        std::vector<float> u2(n);
+        std::vector<float> u3(n);
 
-        auto xd = v1.data();
-        auto yd = v2.data();
-        auto wd = v3.data();
-        auto xf = u1.data();
-        auto yf = u2.data();
-        auto wf = u3.data();
+        auto *xd = v1.data();
+        auto *yd = v2.data();
+        auto *wd = v3.data();
+        auto *xf = u1.data();
+        auto *yf = u2.data();
+        auto *wf = u3.data();
 
         std::default_random_engine rng(1234);
         std::uniform_real_distribution<double> dist(-1, 1);
@@ -332,7 +336,7 @@ TEST_SUITE("performance")
                     ++count;
                     univariate_accumulator<Vec8f> acc(Vec8f().load(xf));
                     constexpr auto sz = Vec8f::size();
-                    auto m = s & (-sz);
+                    size_t m = s & (-sz);
                     for (size_t i = sz; i < m; i += sz) {
                         acc(Vec8f().load(xf + i));
                     }
@@ -346,7 +350,7 @@ TEST_SUITE("performance")
                     ++count;
                     univariate_accumulator<Vec8f> acc(Vec8f().load(xf), Vec8f().load(wf));
                     constexpr auto sz = Vec8f::size();
-                    auto m = s & (-sz);
+                    size_t m = s & (-sz);
                     for (size_t i = sz; i < m; i += sz) {
                         acc(Vec8f().load(xf + i), Vec8f().load(wf + i));
                     }
@@ -360,11 +364,10 @@ TEST_SUITE("performance")
                     ++count;
                     univariate_accumulator<Vec4d> acc(Vec4d().load(xd));
                     constexpr auto sz = Vec4d::size();
-                    auto m = s & (-sz);
+                    size_t m = s & (-sz);
                     for (size_t i = sz; i < m; i += sz) {
                         acc(Vec4d().load(xd + i));
                     }
-                    auto stats = acc.stats();
                     var += univariate_statistics(acc).variance;
                 });
             }
@@ -375,11 +378,10 @@ TEST_SUITE("performance")
                     ++count;
                     univariate_accumulator<Vec4d> acc(Vec4d().load(xd), Vec4d().load(wd));
                     constexpr auto sz = Vec4d::size();
-                    auto m = s & (-sz);
+                    size_t m = s & (-sz);
                     for (size_t i = sz; i < m; i += sz) {
                         acc(Vec4d().load(xd + i), Vec4d().load(wd + i));
                     }
-                    auto stats = acc.stats();
                     var += univariate_statistics(acc).variance;
                 });
             }

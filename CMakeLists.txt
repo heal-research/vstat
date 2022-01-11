@@ -15,8 +15,10 @@ docs_early_return()
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
-# ---- Declare library ----
+# ---- Dependencies ----
+find_package(vectorclass REQUIRED)
 
+# ---- Declare library ----
 add_library(vstat_vstat INTERFACE)
 add_library(vstat::vstat ALIAS vstat_vstat)
 
@@ -31,7 +33,13 @@ target_include_directories(
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
 )
 
+target_link_libraries(vstat_vstat INTERFACE vectorclass::vectorclass)
 target_compile_features(vstat_vstat INTERFACE cxx_std_17)
+if(MSVC)
+    target_compile_options(vstat_vstat INTERFACE "$<$<CONFIG:Release>:/O3;/std:c++latest>")
+else()
+    target_compile_options(vstat_vstat INTERFACE "$<$<CONFIG:Release>:-march=x86-64;-mavx2;-mfma;-fno-math-errno>")
+endif()
 
 # ---- Install rules ----
 

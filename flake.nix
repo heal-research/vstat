@@ -20,16 +20,16 @@
             name = "vstat-env";
             hardeningDisable = [ "all" ];
             impureUseNativeOptimizations = true;
-            nativeBuildInputs = with pkgs; [ cmake clang_12 clang-tools cppcheck ];
+            nativeBuildInputs = with pkgs; [ cmake clang_13 clang-tools cppcheck ];
             buildInputs = with pkgs; [
                 # python environment for bindings and scripting
                 boost
-                pkgs.nur.repos.foolnotion.cmake-init
-                pkgs.nur.repos.foolnotion.vectorclass
                 doctest
                 gsl
-                pkgs.nur.repos.foolnotion.linasm
                 pkg-config
+                pkgs.nur.repos.foolnotion.cmake-init
+                pkgs.nur.repos.foolnotion.linasm
+                pkgs.nur.repos.foolnotion.vectorclass
               ];
 
             shellHook = ''

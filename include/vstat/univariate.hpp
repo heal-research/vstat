@@ -10,7 +10,7 @@
 namespace VSTAT_NAMESPACE {
 #endif
 
-template <typename T, std::enable_if_t<detail::is_any_v<T, float, double, Vec4f, Vec8f, Vec4d>, bool> = true>
+template <typename T>
 struct univariate_accumulator {
     univariate_accumulator(T x, T w)
         : sum_w(w)
@@ -19,18 +19,11 @@ struct univariate_accumulator {
     {
     }
 
-    univariate_accumulator(T x) : univariate_accumulator(x, T{1.0})
+    explicit univariate_accumulator(T x) : univariate_accumulator(x, T{1.0})
     {
     }
 
-    univariate_accumulator(univariate_accumulator<T> const& acc)
-        : sum_w(acc.sum_w)
-        , sum_x(acc.sum_x)
-        , sum_xx(acc.sum_xx)
-    {
-    }
-
-    static univariate_accumulator<T> load_state(T sw, T sx, T sxx) noexcept
+    static auto load_state(T sw, T sx, T sxx) noexcept -> univariate_accumulator<T>
     {
         univariate_accumulator<T> acc(T { 0 }, T { 0 });
         acc.sum_w = sw;
@@ -73,7 +66,7 @@ struct univariate_accumulator {
     }
 
     // performs the reductions and returns { sum_w, sum_x, sum_xx }
-    std::tuple<double, double, double> stats() const noexcept
+    [[nodiscard]] auto stats() const noexcept -> std::tuple<double, double, double>
     {
         if constexpr (std::is_floating_point_v<T>) {
             return { sum_w, sum_x, sum_xx };
@@ -109,7 +102,7 @@ struct univariate_statistics {
     }
 };
 
-inline std::ostream& operator<<(std::ostream& os, univariate_statistics const& stats)
+inline auto operator<<(std::ostream& os, univariate_statistics const& stats) -> std::ostream&
 {
     os << "count:          \t" << stats.count
        << "\nsum:            \t" << stats.sum
