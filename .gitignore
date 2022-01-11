@@ -1,6 +1,8 @@
 .idea/
 .vs/
 .vscode/
+.cache/
+.clangd/
 build/
 cmake/open-cpp-coverage.cmake
 cmake-build-*/
