@@ -21,7 +21,7 @@ template<typename T, typename InputIt1, typename F = detail::identity,
         detail::is_iterator_v<InputIt1> &&
         std::is_invocable_r_v<T, F, typename std::iterator_traits<InputIt1>::value_type>
     , bool> = true>
-inline univariate_statistics accumulate(InputIt1 first, InputIt1 last, F&& f = F{}) noexcept
+inline auto accumulate(InputIt1 first, InputIt1 last, F&& f = F{}) noexcept -> univariate_statistics
 {
     using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
     const size_t n = std::distance(first, last);
@@ -66,7 +66,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename F = detail::
         std::is_invocable_r_v<T, F, typename std::iterator_traits<InputIt1>::value_type> &&
         std::is_arithmetic_v<typename std::iterator_traits<InputIt2>::value_type>
     , bool> = true>
-inline univariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F&& f = F{}) noexcept
+inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F&& f = F{}) noexcept -> univariate_statistics
 {
     using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
     const size_t n = std::distance(first1, last1);
@@ -75,11 +75,12 @@ inline univariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt
 
     if (n < s) {
         univariate_accumulator<T> scalar_acc(std::invoke(f, *first1++), *first2++);
-        while (first1 < last1) scalar_acc(std::invoke(f, *first1++), *first2++);
+        while (first1 < last1) { scalar_acc(std::invoke(f, *first1++), *first2++); }
         return univariate_statistics(scalar_acc);
     }
 
-    std::array<T, s> x, w;
+    std::array<T, s> x;
+    std::array<T, s> w;
     std::transform(first1, first1 + s, x.begin(), f);
     std::copy(first2, first2 + s, w.begin());
     std::advance(first1, s);
@@ -115,7 +116,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename BinaryOp, ty
         std::is_invocable_r_v<T, F2, typename std::iterator_traits<InputIt2>::value_type> &&
         std::is_invocable_r_v<T, BinaryOp, T, T>
     , bool> = true>
-inline univariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept
+inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
 {
     using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
     const size_t n = std::distance(first1, last1);
@@ -124,7 +125,7 @@ inline univariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt
 
     if (n < s) {
         univariate_accumulator<T> scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++)));
-        while (first1 < last1) scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++)));
+        while (first1 < last1) { scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++))); }
         return univariate_statistics(scalar_acc);
     }
 
@@ -163,7 +164,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename InputIt3, ty
         std::is_arithmetic_v<typename std::iterator_traits<InputIt3>::value_type> &&
         std::is_invocable_r_v<T, BinaryOp, T, T>
     , bool> = true>
-inline univariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt3 first3, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept
+inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt3 first3, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
 {
     using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
     const size_t n = std::distance(first1, last1);
@@ -172,11 +173,12 @@ inline univariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt
 
     if (n < s) {
         univariate_accumulator<T> scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++)), *first3++);
-        while (first1 < last1) scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++)), *first3++);
+        while (first1 < last1) { scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++)), *first3++); }
         return univariate_statistics(scalar_acc);
     }
 
-    std::array<T, s> x, w;
+    std::array<T, s> x;
+    std::array<T, s> w;
     std::transform(first1, first1 + s, first2, x.begin(), [&](auto a, auto b){ return std::invoke(op, std::invoke(f1, a), std::invoke(f2, b)); }); // apply projections
     std::copy(first3, first3 + s, w.begin());
     std::advance(first1, s);
@@ -211,7 +213,7 @@ template<typename T, typename X, typename F = detail::identity,
         detail::is_any_v<T, float, double> &&
         std::is_invocable_r_v<T, F, X>
     , bool> = true>
-inline univariate_statistics accumulate(X const* x, size_t n, F&& f = F{}) noexcept
+inline auto accumulate(X const* x, size_t n, F&& f = F{}) noexcept -> univariate_statistics
 {
     return univariate::accumulate<T>(x, x + n, f);
 }
@@ -222,7 +224,7 @@ template<typename T, typename X, typename W, typename F = detail::identity,
         std::is_arithmetic_v<W> &&
         std::is_invocable_r_v<T, F, X>
     , bool> = true>
-inline univariate_statistics accumulate(X const* x, W const* w, size_t n, F&& f = F{}) noexcept
+inline auto accumulate(X const* x, W const* w, size_t n, F&& f = F{}) noexcept -> univariate_statistics
 {
     return univariate::accumulate<T>(x, x + n, w, f);
 }
@@ -234,7 +236,7 @@ template<typename T, typename X, typename Y, typename BinaryOp, typename F1 = de
         std::is_invocable_r_v<T, F2, Y> &&
         std::is_invocable_r_v<T, BinaryOp, T, T>
     , bool> = true>
-inline univariate_statistics accumulate(X const* x, Y const* y, size_t n, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{})
+inline auto accumulate(X const* x, Y const* y, size_t n, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) -> univariate_statistics
 {
     return univariate::accumulate<T>(x, x + n, y, op, f1, f2);
 }
@@ -247,7 +249,7 @@ template<typename T, typename X, typename Y, typename W, typename BinaryOp, type
         std::is_invocable_r_v<T, BinaryOp, T, T> &&
         std::is_arithmetic_v<W>
     , bool> = true>
-inline univariate_statistics accumulate(X const* x, Y const* y, W const* w, size_t n, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{})
+inline auto accumulate(X const* x, Y const* y, W const* w, size_t n, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) -> univariate_statistics
 {
     return univariate::accumulate<T>(x, x + n, y, w, op, f1, f2);
 }
@@ -263,7 +265,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename F1 = detail:
         std::is_invocable_r_v<T, F1, typename std::iterator_traits<InputIt1>::value_type> &&
         std::is_invocable_r_v<T, F2, typename std::iterator_traits<InputIt2>::value_type>
     , bool> = true>
-inline bivariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept
+inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
     using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
     const size_t n = std::distance(first1, last1);
@@ -272,11 +274,12 @@ inline bivariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt2
 
     if (n < s) {
         bivariate_accumulator<T> scalar_acc(std::invoke(f1, *first1++),std::invoke(f2, *first2++));
-        while (first1 < last1) scalar_acc(std::invoke(f1, *first1++), std::invoke(f2, *first2++));
+        while (first1 < last1) { scalar_acc(std::invoke(f1, *first1++), std::invoke(f2, *first2++)); }
         return bivariate_statistics(scalar_acc);
     }
 
-    std::array<T, s> x1, x2;
+    std::array<T, s> x1;
+    std::array<T, s> x2;
     std::transform(first1, first1 + s, x1.begin(), f1); std::advance(first1, s);
     std::transform(first2, first2 + s, x2.begin(), f2); std::advance(first2, s);
     bivariate_accumulator<vec> acc(vec().load(x1.data()), vec().load(x2.data()));
@@ -311,7 +314,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename InputIt3, ty
         std::is_invocable_r_v<T, F2, typename std::iterator_traits<InputIt1>::value_type> &&
         std::is_arithmetic_v<typename std::iterator_traits<InputIt1>::value_type>
     , bool> = true>
-inline bivariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt3 first3, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept
+inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt3 first3, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
     using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
     const size_t n = std::distance(first1, last1);
@@ -320,11 +323,13 @@ inline bivariate_statistics accumulate(InputIt1 first1, InputIt1 last1, InputIt2
 
     if (n < s) {
         bivariate_accumulator<T> scalar_acc(std::invoke(f1, *first1++),std::invoke(f2, *first2++), *first3++);
-        while (first1 < last1) scalar_acc(std::invoke(f1, *first1++), std::invoke(f2, *first2++), *first3++);
+        while (first1 < last1) { scalar_acc(std::invoke(f1, *first1++), std::invoke(f2, *first2++), *first3++); }
         return bivariate_statistics(scalar_acc);
     }
 
-    std::array<T, s> x1, x2, w;
+    std::array<T, s> x1;
+    std::array<T, s> x2;
+    std::array<T, s> w;
     std::transform(first1, first1 + s, x1.begin(), f1);
     std::transform(first2, first2 + s, x2.begin(), f2);
     std::copy(first3, first3 + s, w.begin());
@@ -360,7 +365,7 @@ template<typename T, typename X, typename Y, typename F1 = detail::identity, typ
         std::is_invocable_r_v<T, F1, X> &&
         std::is_invocable_r_v<T, F2, Y>
     , bool> = true>
-inline bivariate_statistics accumulate(X const* x, Y const* y, size_t n, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept
+inline auto accumulate(X const* x, Y const* y, size_t n, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
     return bivariate::accumulate<T>(x, x + n, y, f1, f2);
 }
@@ -372,7 +377,7 @@ template<typename T, typename X, typename Y, typename W, typename F1 = detail::i
         std::is_invocable_r_v<T, F2, Y> &&
         std::is_arithmetic_v<W>
     , bool> = true>
-inline bivariate_statistics accumulate(X const* x, Y const* y, W const* w, size_t n, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept
+inline auto accumulate(X const* x, Y const* y, W const* w, size_t n, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
     return bivariate::accumulate<T>(x, x + n, y, w, f1, f2);
 }

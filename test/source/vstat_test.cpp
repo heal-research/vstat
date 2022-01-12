@@ -389,7 +389,8 @@ TEST_SUITE("performance")
 
         SUBCASE("vstat")
         {
-            double var = 0, count = 0;
+            double var = 0;
+            double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
                 b.batch(s).run("vstat variance float " + std::to_string(s), [&]() {
@@ -409,7 +410,8 @@ TEST_SUITE("performance")
 
         SUBCASE("vstat weighted")
         {
-            double var = 0, count = 0;
+            double var = 0;
+            double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
                 b.batch(s).run("vstat variance float weighted " + std::to_string(s), [&]() {
@@ -429,7 +431,8 @@ TEST_SUITE("performance")
 
         SUBCASE("linasm")
         {
-            double var = 0, count = 0;
+            double var = 0;
+            double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
                 b.batch(s).run("linasm variance float " + std::to_string(s), [&]() {
@@ -450,7 +453,8 @@ TEST_SUITE("performance")
 
         SUBCASE("boost accumulators")
         {
-            double var = 0, count = 0;
+            double var = 0;
+            double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
                 b.batch(s).run("boost variance float " + std::to_string(s), [&]() {
@@ -478,7 +482,8 @@ TEST_SUITE("performance")
 
         SUBCASE("gsl")
         {
-            double var = 0, count = 0;
+            double var = 0;
+            double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
                 b.batch(s).run("gsl variance float " + std::to_string(s), [&]() {
@@ -501,13 +506,15 @@ TEST_SUITE("performance")
     {
         const int n = int(1e6);
 
-        std::vector<double> v1(n), v2(n);
-        std::vector<float> u1(n), u2(n);
+        std::vector<double> v1(n);
+        std::vector<double> v2(n);
+        std::vector<float> u1(n);
+        std::vector<float> u2(n);
 
-        auto xd = v1.data();
-        auto yd = v2.data();
-        auto xf = u1.data();
-        auto yf = u2.data();
+        auto *xd = v1.data();
+        auto *yd = v2.data();
+        auto *xf = u1.data();
+        auto *yf = u2.data();
 
         std::default_random_engine rng(1234);
         std::uniform_real_distribution<double> dist(-1, 1);
@@ -535,7 +542,8 @@ TEST_SUITE("performance")
 
         SUBCASE("vstat")
         {
-            double var = 0, count = 0;
+            double var = 0;
+            double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
                 b.batch(s).run("vstat covariance float " + std::to_string(s), [&]() {
@@ -555,7 +563,8 @@ TEST_SUITE("performance")
 
         SUBCASE("vstat")
         {
-            double var = 0, count = 0;
+            double var = 0;
+            double count = 0;
             var = count = 0;
             for (auto s : sizes) {
                 var = count = 0;
@@ -580,7 +589,8 @@ TEST_SUITE("performance")
 
         SUBCASE("vstat")
         {
-            double var = 0, count = 0;
+            double var = 0;
+            double count = 0;
             var = count = 0;
             for (auto s : sizes) {
                 var = count = 0;
@@ -609,7 +619,8 @@ TEST_SUITE("performance")
 
         SUBCASE("vstat")
         {
-            double var = 0, count = 0;
+            double var = 0;
+            double count = 0;
             var = count = 0;
             for (auto s : sizes) {
                 var = count = 0;

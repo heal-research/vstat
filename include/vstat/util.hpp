@@ -74,7 +74,7 @@ namespace detail {
 
     template<typename T>
     inline constexpr bool is_iterator_v = is_iterator<T>::value;
-}
+} // namespace detail
 
 #if defined(VSTAT_NAMESPACE)
 }

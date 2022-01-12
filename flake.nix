@@ -14,13 +14,14 @@
             inherit system;
             overlays = [ nur.overlay ];
           };
-        in
+        in rec
         {
-          devShell = pkgs.gcc11Stdenv.mkDerivation {
-            name = "vstat-env";
-            hardeningDisable = [ "all" ];
-            impureUseNativeOptimizations = true;
-            nativeBuildInputs = with pkgs; [ cmake clang_13 clang-tools cppcheck ];
+          defaultPackage = pkgs.gcc11Stdenv.mkDerivation {
+            name = "vstat-test";
+            src = self;
+
+            cmakeFlags = [ "-DCMAKE_BUILD_TYPE=Release" "-DBUILD_TESTING=ON" ];
+            nativeBuildInputs = with pkgs; [ cmake ];
             buildInputs = with pkgs; [
                 # python environment for bindings and scripting
                 boost
@@ -31,6 +32,15 @@
                 pkgs.nur.repos.foolnotion.linasm
                 pkgs.nur.repos.foolnotion.vectorclass
               ];
+          };
+
+          devShell = pkgs.gcc11Stdenv.mkDerivation {
+            name = "vstat-env";
+            hardeningDisable = [ "all" ];
+            impureUseNativeOptimizations = true;
+            nativeBuildInputs = with pkgs; [ cmake clang_13 clang-tools cppcheck ];
+
+            buildInputs = defaultPackage.buildInputs;
 
             shellHook = ''
               LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [ pkgs.gcc11Stdenv.cc.cc.lib ]};

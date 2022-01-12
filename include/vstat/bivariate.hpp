@@ -73,13 +73,13 @@ struct bivariate_accumulator {
         sum_xy += f * dx * dy;
     }
 
-    template <typename U, std::enable_if_t<detail::is_any_v<T, Vec4d, Vec4f, Vec8f> && std::is_floating_point_v<U>, bool> = true>
+    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_any_v<T, Vec4d, Vec4f, Vec8f>, bool> = true>
     inline void operator()(U const* x, U const* y)
     {
         (*this)(T().load(x), T().load(y));
     }
 
-    template <typename U, std::enable_if_t<detail::is_any_v<T, Vec4d, Vec4f, Vec8f> && std::is_floating_point_v<U>, bool> = true>
+    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_any_v<T, Vec4d, Vec4f, Vec8f>, bool> = true>
     inline void operator()(U const* x, U const* y, U const* w)
     {
         (*this)(T().load(x), T().load(y), T().load(w));

@@ -27,7 +27,7 @@ namespace {
         return std::make_tuple(x[0], x[1], x[2], x[3]);
     }
 
-    auto split(Vec8f v) -> std::tuple<Vec4f, Vec4f>
+    inline auto split(Vec8f v) -> std::tuple<Vec4f, Vec4f>
     {
         return { v.get_low(), v.get_high() };
     }

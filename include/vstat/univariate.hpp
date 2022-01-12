@@ -25,7 +25,7 @@ struct univariate_accumulator {
 
     static auto load_state(T sw, T sx, T sxx) noexcept -> univariate_accumulator<T>
     {
-        univariate_accumulator<T> acc(T { 0 }, T { 0 });
+        univariate_accumulator<T> acc(T{0}, T{0});
         acc.sum_w = sw;
         acc.sum_x = sx;
         acc.sum_xx = sxx;
@@ -51,14 +51,14 @@ struct univariate_accumulator {
         sum_xx += dx * dx / (w * sum_w * sum_w_old);
     }
 
-    template <typename U, std::enable_if_t<detail::is_any_v<T, Vec4d, Vec4f, Vec8f> && std::is_floating_point_v<U>, bool> = true>
+    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_any_v<T, Vec4d, Vec4f, Vec8f>, bool> = true>
     inline void operator()(U const* x) noexcept
     {
         static_assert(sizeof(U) == T::size());
         (*this)(T().load(x));
     }
 
-    template <typename U, std::enable_if_t<detail::is_any_v<T, Vec4d, Vec4f, Vec8f> && std::is_floating_point_v<U>, bool> = true>
+    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_any_v<T, Vec4d, Vec4f, Vec8f>, bool> = true>
     inline void operator()(U const* x, U const* w) noexcept
     {
         static_assert(sizeof(U) == T::size());
