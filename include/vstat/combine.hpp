@@ -4,6 +4,7 @@
 #ifndef VSTAT_COMBINE_HPP
 #define VSTAT_COMBINE_HPP
 
+#include <array>
 #include <cstddef>
 #include <cmath>
 #include <iostream>
