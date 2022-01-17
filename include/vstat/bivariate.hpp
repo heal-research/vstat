@@ -7,9 +7,7 @@
 #include "combine.hpp"
 #include <type_traits>
 
-#if defined(VSTAT_NAMESPACE)
 namespace VSTAT_NAMESPACE {
-#endif
 
 template <typename T>
 struct bivariate_accumulator {
@@ -172,8 +170,6 @@ inline auto operator<<(std::ostream& os, bivariate_statistics const& stats) -> s
     return os;
 }
 
-#if defined(VSTAT_NAMESPACE)
-} // end namespace
-#endif
+} // namespace VSTAT_NAMESPACE
 
 #endif

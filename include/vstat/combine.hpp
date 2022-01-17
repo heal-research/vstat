@@ -13,6 +13,8 @@
 #include "vectorclass/vectorclass.h"
 #include "util.hpp"
 
+namespace VSTAT_NAMESPACE {
+
 namespace {
     // utility
     template<typename T>
@@ -33,6 +35,7 @@ namespace {
         return { v.get_low(), v.get_high() };
     }
 } // namespace
+
 
 // The code below is based on:
 // Schubert et al. - Numerically Stable Parallel Computation of (Co-)Variance, p. 4, eq. 22-26
@@ -159,8 +162,6 @@ combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_y, Vec8f sum_xx, Vec8f sum_yy, Vec8f
     return { sxx, syy, sxy };
 }
 
-#if defined(VSTAT_NAMESPACE)
-}
-#endif
+} // namespace VSTAT_NAMESPACE
 
 #endif

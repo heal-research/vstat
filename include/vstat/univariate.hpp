@@ -6,9 +6,7 @@
 
 #include "combine.hpp"
 
-#if defined(VSTAT_NAMESPACE)
 namespace VSTAT_NAMESPACE {
-#endif
 
 template <typename T>
 struct univariate_accumulator {
@@ -114,8 +112,6 @@ inline auto operator<<(std::ostream& os, univariate_statistics const& stats) -> 
     return os;
 }
 
-#if defined(VSTAT_NAMESPACE)
-} // end namespace
-#endif
+} // namespace VSTAT_NAMESPACE
 
 #endif

@@ -9,9 +9,7 @@
 
 #include <algorithm>
 
-#if defined(VSTAT_NAMESPACE)
 namespace VSTAT_NAMESPACE {
-#endif
 
 namespace univariate {
 // accumulate a sequence
@@ -383,8 +381,6 @@ inline auto accumulate(X const* x, Y const* y, W const* w, size_t n, F1&& f1 = F
 }
 } // namespace bivariate
 
-#if defined(VSTAT_NAMESPACE)
-}
-#endif
+} // namespace VSTAT_NAMESPACE
 
 #endif

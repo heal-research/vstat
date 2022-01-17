@@ -8,12 +8,6 @@
 #include <type_traits>
 #include <utility>
 
-#if defined(VSTAT_NAMESPACE)
-namespace VSTAT_NAMESPACE {
-#endif
-
-namespace detail {
-
 #if defined(__GNUC__) || defined(__GNUG__)
 #define VSTAT_FORCE_INLINE __attribute__((always_inline)) inline
 #else
@@ -32,6 +26,11 @@ namespace detail {
         std::terminate();                                                                                \
     }
 
+#if !defined(VSTAT_NAMESPACE)
+#define VSTAT_NAMESPACE vstat
+#endif
+
+namespace VSTAT_NAMESPACE::detail {
     // type traits
     template<typename T, typename... Ts>
     struct is_any : std::disjunction<std::is_same<T, Ts>...> {
@@ -74,10 +73,5 @@ namespace detail {
 
     template<typename T>
     inline constexpr bool is_iterator_v = is_iterator<T>::value;
-} // namespace detail
-
-#if defined(VSTAT_NAMESPACE)
-}
-#endif
-
+} // namespace VSTAT_NAMESPACE::detail
 #endif

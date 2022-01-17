@@ -35,8 +35,14 @@ target_include_directories(
 
 target_link_libraries(vstat_vstat INTERFACE vectorclass::vectorclass)
 target_compile_features(vstat_vstat INTERFACE cxx_std_17)
+
+if (NOT VSTAT_NAMESPACE)
+    set(VSTAT_NAMESPACE vstat)
+endif()
+message(STATUS "vstat namespace defined as '${VSTAT_NAMESPACE}'")
+
 if(MSVC)
-    target_compile_options(vstat_vstat INTERFACE "$<$<CONFIG:Release>:/O3;/std:c++latest>")
+    target_compile_options(vstat_vstat INTERFACE "$<$<CONFIG:Release>:/O2;/std:c++latest>")
 else()
     target_compile_options(vstat_vstat INTERFACE "$<$<CONFIG:Release>:-march=x86-64;-mavx2;-mfma;-fno-math-errno>")
 endif()
