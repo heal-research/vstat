@@ -15,9 +15,6 @@ docs_early_return()
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
-# ---- Dependencies ----
-find_package(vectorclass REQUIRED)
-
 # ---- Declare library ----
 add_library(vstat_vstat INTERFACE)
 add_library(vstat::vstat ALIAS vstat_vstat)
@@ -33,7 +30,15 @@ target_include_directories(
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
 )
 
-target_link_libraries(vstat_vstat INTERFACE vectorclass::vectorclass)
+# ---- Dependencies ----
+find_package(vectorclass REQUIRED)
+if (vectorclass_FOUND)
+    target_link_libraries(vstat_vstat INTERFACE vectorclass::vectorclass)
+else()
+    include(FindPkgConfig)
+    pkg_search_module(vectorclass vectorclass)
+    target_link_libraries(vstat_vstat INTERFACE vectorclass)
+endif()
 target_compile_features(vstat_vstat INTERFACE cxx_std_17)
 
 if (NOT VSTAT_NAMESPACE)
