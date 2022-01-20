@@ -31,7 +31,7 @@ target_include_directories(
 )
 
 # ---- Dependencies ----
-find_package(vectorclass REQUIRED)
+find_package(vectorclass)
 if (vectorclass_FOUND)
     target_link_libraries(vstat_vstat INTERFACE vectorclass::vectorclass)
 else()
