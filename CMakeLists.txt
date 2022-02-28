@@ -46,12 +46,6 @@ if (NOT VSTAT_NAMESPACE)
 endif()
 message(STATUS "vstat namespace defined as '${VSTAT_NAMESPACE}'")
 
-if(MSVC)
-    target_compile_options(vstat_vstat INTERFACE "$<$<CONFIG:Release>:/O2;/std:c++latest>")
-else()
-    target_compile_options(vstat_vstat INTERFACE "$<$<CONFIG:Release>:-march=x86-64;-mavx2;-mfma;-fno-math-errno>")
-endif()
-
 # ---- Install rules ----
 
 if(NOT CMAKE_SKIP_INSTALL_RULES)
