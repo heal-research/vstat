@@ -16,13 +16,14 @@
 namespace VSTAT_NAMESPACE {
 
 // the following INSTRSET value is defined by vectorclass
+// see: https://github.com/vectorclass/version2/blob/master/instrset.h#L54
 #if INSTRSET >= 9 // AVX512, AVX512F, AVX512BW, AVX512DQ, AVX512VL
     using vec_f = Vec16f;
     using vec_d = Vec8d;
 #elif INSTRSET >= 8 // AVX2
     using vec_f = Vec8f;
     using vec_d = Vec4d;
-#else
+#else // assume at least AVX/SSE
     using vec_f = Vec4f;
     using vec_d = Vec2d;
 #endif
@@ -46,10 +47,10 @@ namespace detail {
 
     // utility
     template<typename T>
-    auto square(T a) {
+    auto square(T a)
+    {
         return a * a;
     }
-
 
     template<typename T, std::enable_if_t<is_vcl_type_v<T>, bool> = true>
     auto unpack(T v) -> auto
@@ -154,7 +155,7 @@ inline auto combine(T sum_w, T sum_x, T sum_y, T sum_xx, T sum_yy, T sum_xy) -> 
     return { sxx, syy, sxy };
 }
 
-// combines eight partitions into a single result
+// combines eight or sixteen partitions into a single result
 template<typename T, std::enable_if_t<detail::is_any_v<T, Vec8f, Vec8d, Vec16f>, bool> = true>
 inline auto combine(T sum_w, T sum_x, T sum_y, T sum_xx, T sum_yy, T sum_xy) -> std::tuple<double, double, double> // NOLINT
 {
@@ -168,12 +169,12 @@ inline auto combine(T sum_w, T sum_x, T sum_y, T sum_xx, T sum_yy, T sum_xy) -> 
     auto [qxx1, qyy1, qxy1] = combine(sum_w1, sum_x1, sum_y1, sum_xx1, sum_yy1, sum_xy1);
 
     // use to_double for additional precision
-    double n0  = horizontal_add(to_double(sum_w0));
-    double n1  = horizontal_add(to_double(sum_w1));
-    double sx0 = horizontal_add(to_double(sum_x0));
-    double sx1 = horizontal_add(to_double(sum_x1));
-    double sy0 = horizontal_add(to_double(sum_y0));
-    double sy1 = horizontal_add(to_double(sum_y1));
+    double n0  = horizontal_add(sum_w0);
+    double n1  = horizontal_add(sum_w1);
+    double sx0 = horizontal_add(sum_x0);
+    double sx1 = horizontal_add(sum_x1);
+    double sy0 = horizontal_add(sum_y0);
+    double sy1 = horizontal_add(sum_y1);
 
     double f   = 1. / (n0 * n1 * (n0 + n1));
     double sx  = n0 * sx1 - n1 * sx0;
