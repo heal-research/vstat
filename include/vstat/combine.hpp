@@ -15,26 +15,56 @@
 
 namespace VSTAT_NAMESPACE {
 
-namespace {
+// the following INSTRSET value is defined by vectorclass
+#if INSTRSET >= 9 // AVX512, AVX512F, AVX512BW, AVX512DQ, AVX512VL
+    using vec_f = Vec16f;
+    using vec_d = Vec8d;
+#elif INSTRSET >= 8 // AVX2
+    using vec_f = Vec8f;
+    using vec_d = Vec4d;
+#else
+    using vec_f = Vec4f;
+    using vec_d = Vec2d;
+#endif
+
+namespace detail {
+    template<typename T>
+    struct is_vcl_type {
+        static constexpr bool value = detail::is_any_v<T, Vec4f, Vec4d, Vec8f, Vec8d, Vec16f>;
+    };
+
+    template<typename T>
+    inline constexpr bool is_vcl_type_v = is_vcl_type<T>::value;
+
+    template<typename T, std::enable_if_t<is_vcl_type_v<T>, bool> = true>
+    struct vcl_scalar {
+        using type = std::conditional_t<detail::is_any_v<T, Vec4f, Vec8f, Vec16f>, float, double>;
+    };
+
+    template<typename T>
+    using vcl_scalar_t = typename vcl_scalar<T>::type;
+
     // utility
     template<typename T>
     auto square(T a) {
         return a * a;
     }
 
-    template<typename T, std::enable_if_t<detail::is_any_v<T, Vec4f, Vec4d>, bool> = true>
+
+    template<typename T, std::enable_if_t<is_vcl_type_v<T>, bool> = true>
     auto unpack(T v) -> auto
     {
-        std::array<std::conditional_t<std::is_same_v<T, Vec4f>, float, double>, 4> x{};
+        std::array<vcl_scalar_t<T>, T::size()> x{};
         v.store(x.data());
-        return std::make_tuple(x[0], x[1], x[2], x[3]);
+        return x;
     }
 
-    inline auto split(Vec8f v) -> std::tuple<Vec4f, Vec4f>
+    template<typename T, std::enable_if_t<is_vcl_type_v<T>, bool> = true>
+    auto split(T v) -> auto
     {
-        return { v.get_low(), v.get_high() };
+        return std::make_tuple(v.get_low(), v.get_high());
     }
-} // namespace
+} // namespace detail
 
 
 // The code below is based on:
@@ -42,11 +72,13 @@ namespace {
 // https://dbs.ifi.uni-heidelberg.de/files/Team/eschubert/publications/SSDBM18-covariance-authorcopy.pdf
 // merge covariance from individual data partitions A,B
 
-inline auto combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx) -> double
+// combine 4-way and return the sum
+template<typename T, std::enable_if_t<detail::is_any_v<T, Vec4f, Vec4d>, bool> = true>
+inline auto combine(T sum_w, T sum_x, T sum_xx) -> double
 {
-    auto [n0, n1, n2, n3] = unpack(sum_w);
-    auto [s0, s1, s2, s3] = unpack(sum_x);
-    auto [q0, q1, q2, q3] = unpack(sum_xx);
+    auto [n0, n1, n2, n3] = detail::unpack(sum_w);
+    auto [s0, s1, s2, s3] = detail::unpack(sum_x);
+    auto [q0, q1, q2, q3] = detail::unpack(sum_xx);
 
     double n01 = n0 + n1;
     double s01 = s0 + s1;
@@ -57,21 +89,18 @@ inline auto combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_xx) -> double
     double f23 = 1. / (n2 * n23 * n3);
     double f = 1. / (n01 * (n01 + n23) * n23);
 
-    double q01 = q0 + q1 + f01 * square(n0 * s1 - n1 * s0);
-    double q23 = q2 + q3 + f23 * square(n2 * s3 - n3 * s2);
-    return q01 + q23 + f * square(n01 * s23 - n23 * s01);
+    double q01 = q0 + q1 + f01 * detail::square(n0 * s1 - n1 * s0);
+    double q23 = q2 + q3 + f23 * detail::square(n2 * s3 - n3 * s2);
+    return q01 + q23 + f * detail::square(n01 * s23 - n23 * s01);
 }
 
-inline auto combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_xx) -> double
+// combine 8 or 16-way and return the sum
+template<typename T, std::enable_if_t<detail::is_any_v<T, Vec8f, Vec8d, Vec16f>, bool> = true>
+inline auto combine(T sum_w, T sum_x, T sum_xx) -> double
 {
-    return combine(to_double(sum_w), to_double(sum_x), to_double(sum_xx));
-}
-
-inline auto combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx) -> double
-{
-    auto [sum_w0, sum_w1] = split(sum_w);
-    auto [sum_x0, sum_x1] = split(sum_x);
-    auto [sum_xx0, sum_xx1] = split(sum_xx);
+    auto [sum_w0, sum_w1] = detail::split(sum_w);
+    auto [sum_x0, sum_x1] = detail::split(sum_x);
+    auto [sum_xx0, sum_xx1] = detail::split(sum_xx);
 
     auto s0 = horizontal_add(sum_x0);
     auto s1 = horizontal_add(sum_x1);
@@ -83,19 +112,19 @@ inline auto combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_xx) -> double
     auto n1 = horizontal_add(sum_w1);
 
     double f   = 1. / (n0 * n1 * (n0 + n1));
-    return q0 + q1 + f * square(n1 * s0 - n0 * s1);
+    return q0 + q1 + f * detail::square(n1 * s0 - n0 * s1);
 }
 
 // combines four partitions into a single result
-inline auto
-combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d sum_xy) -> std::tuple<double, double, double> // NOLINT
+template<typename T, std::enable_if_t<detail::is_any_v<T, Vec4f, Vec4d>, bool> = true>
+inline auto combine(T sum_w, T sum_x, T sum_y, T sum_xx, T sum_yy, T sum_xy) -> std::tuple<double, double, double> // NOLINT
 {
-    auto [n0, n1, n2, n3] = unpack(sum_w);
-    auto [sx0, sx1, sx2, sx3] = unpack(sum_x);
-    auto [sy0, sy1, sy2, sy3] = unpack(sum_y);
-    auto [sxx0, sxx1, sxx2, sxx3] = unpack(sum_xx);
-    auto [syy0, syy1, syy2, syy3] = unpack(sum_yy);
-    auto [sxy0, sxy1, sxy2, sxy3] = unpack(sum_xy);
+    auto [n0, n1, n2, n3] = detail::unpack(sum_w);
+    auto [sx0, sx1, sx2, sx3] = detail::unpack(sum_x);
+    auto [sy0, sy1, sy2, sy3] = detail::unpack(sum_y);
+    auto [sxx0, sxx1, sxx2, sxx3] = detail::unpack(sum_xx);
+    auto [syy0, syy1, syy2, syy3] = detail::unpack(sum_yy);
+    auto [sxy0, sxy1, sxy2, sxy3] = detail::unpack(sum_xy);
 
     double n01 = n0 + n1;
     double sx01 = sx0 + sx1;
@@ -110,13 +139,13 @@ combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d
     double f = 1. / (n01 * (n01 + n23) * n23);
 
     // X
-    double qx01 = sxx0 + sxx1 + f01 * square(n0 * sx1 - n1 * sx0);
-    double qx23 = sxx2 + sxx3 + f23 * square(n2 * sx3 - n3 * sx2);
-    double sxx = qx01 + qx23 + f * square(n01 * sx23 - n23 * sx01);
+    double qx01 = sxx0 + sxx1 + f01 * detail::square(n0 * sx1 - n1 * sx0);
+    double qx23 = sxx2 + sxx3 + f23 * detail::square(n2 * sx3 - n3 * sx2);
+    double sxx = qx01 + qx23 + f * detail::square(n01 * sx23 - n23 * sx01);
     // Y
-    double qy01 = syy0 + syy1 + f01 * square(n0 * sy1 - n1 * sy0);
-    double qy23 = syy2 + syy3 + f23 * square(n2 * sy3 - n3 * sy2);
-    double syy = qy01 + qy23 + f * square(n01 * sy23 - n23 * sy01);
+    double qy01 = syy0 + syy1 + f01 * detail::square(n0 * sy1 - n1 * sy0);
+    double qy23 = syy2 + syy3 + f23 * detail::square(n2 * sy3 - n3 * sy2);
+    double syy = qy01 + qy23 + f * detail::square(n01 * sy23 - n23 * sy01);
     // XY
     double q01 = sxy0 + sxy1 + f01 * (n1 * sx0 - n0 * sx1) * (n1 * sy0 - n0 * sy1);
     double q23 = sxy2 + sxy3 + f23 * (n3 * sx2 - n2 * sx3) * (n3 * sy2 - n2 * sy3);
@@ -124,22 +153,17 @@ combine(Vec4d sum_w, Vec4d sum_x, Vec4d sum_y, Vec4d sum_xx, Vec4d sum_yy, Vec4d
 
     return { sxx, syy, sxy };
 }
-auto
-inline combine(Vec4f sum_w, Vec4f sum_x, Vec4f sum_y, Vec4f sum_xx, Vec4f sum_yy, Vec4f sum_xy) -> std::tuple<double, double, double>
-{
-    return combine(to_double(sum_w), to_double(sum_x), to_double(sum_y), to_double(sum_xx), to_double(sum_yy), to_double(sum_xy));
-}
 
 // combines eight partitions into a single result
-inline auto
-combine(Vec8f sum_w, Vec8f sum_x, Vec8f sum_y, Vec8f sum_xx, Vec8f sum_yy, Vec8f sum_xy) -> std::tuple<double, double, double> // NOLINT
+template<typename T, std::enable_if_t<detail::is_any_v<T, Vec8f, Vec8d, Vec16f>, bool> = true>
+inline auto combine(T sum_w, T sum_x, T sum_y, T sum_xx, T sum_yy, T sum_xy) -> std::tuple<double, double, double> // NOLINT
 {
-    auto [sum_w0, sum_w1]   = split(sum_w);
-    auto [sum_x0, sum_x1]   = split(sum_x);
-    auto [sum_y0, sum_y1]   = split(sum_y);
-    auto [sum_xx0, sum_xx1] = split(sum_xx);
-    auto [sum_yy0, sum_yy1] = split(sum_yy);
-    auto [sum_xy0, sum_xy1] = split(sum_xy);
+    auto [sum_w0, sum_w1]   = detail::split(sum_w);
+    auto [sum_x0, sum_x1]   = detail::split(sum_x);
+    auto [sum_y0, sum_y1]   = detail::split(sum_y);
+    auto [sum_xx0, sum_xx1] = detail::split(sum_xx);
+    auto [sum_yy0, sum_yy1] = detail::split(sum_yy);
+    auto [sum_xy0, sum_xy1] = detail::split(sum_xy);
     auto [qxx0, qyy0, qxy0] = combine(sum_w0, sum_x0, sum_y0, sum_xx0, sum_yy0, sum_xy0);
     auto [qxx1, qyy1, qxy1] = combine(sum_w1, sum_x1, sum_y1, sum_xx1, sum_yy1, sum_xy1);
 

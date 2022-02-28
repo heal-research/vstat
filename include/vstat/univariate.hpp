@@ -49,14 +49,14 @@ struct univariate_accumulator {
         sum_xx += dx * dx / (w * sum_w * sum_w_old);
     }
 
-    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_any_v<T, Vec4d, Vec4f, Vec8f>, bool> = true>
+    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_vcl_type_v<T>, bool> = true>
     inline void operator()(U const* x) noexcept
     {
         static_assert(sizeof(U) == T::size());
         (*this)(T().load(x));
     }
 
-    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_any_v<T, Vec4d, Vec4f, Vec8f>, bool> = true>
+    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_vcl_type_v<T>, bool> = true>
     inline void operator()(U const* x, U const* w) noexcept
     {
         static_assert(sizeof(U) == T::size());

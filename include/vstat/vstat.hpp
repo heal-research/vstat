@@ -21,7 +21,7 @@ template<typename T, typename InputIt1, typename F = detail::identity,
     , bool> = true>
 inline auto accumulate(InputIt1 first, InputIt1 last, F&& f = F{}) noexcept -> univariate_statistics
 {
-    using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
+    using vec = std::conditional_t<std::is_same_v<T, float>, vec_f, vec_d>;
     const size_t n = std::distance(first, last);
     const size_t s = vec::size();
     const size_t m = n & (-s);
@@ -66,7 +66,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename F = detail::
     , bool> = true>
 inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F&& f = F{}) noexcept -> univariate_statistics
 {
-    using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
+    using vec = std::conditional_t<std::is_same_v<T, float>, vec_f, vec_d>;
     const size_t n = std::distance(first1, last1);
     const size_t s = vec::size();
     const size_t m = n & (-s);
@@ -116,7 +116,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename BinaryOp, ty
     , bool> = true>
 inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
 {
-    using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
+    using vec = std::conditional_t<std::is_same_v<T, float>, vec_f, vec_d>;
     const size_t n = std::distance(first1, last1);
     const size_t s = vec::size();
     const size_t m = n & (-s);
@@ -164,7 +164,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename InputIt3, ty
     , bool> = true>
 inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt3 first3, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
 {
-    using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
+    using vec = std::conditional_t<std::is_same_v<T, float>, vec_f, vec_d>;
     const size_t n = std::distance(first1, last1);
     const size_t s = vec::size();
     const size_t m = n & (-s);
@@ -265,7 +265,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename F1 = detail:
     , bool> = true>
 inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
-    using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
+    using vec = std::conditional_t<std::is_same_v<T, float>, vec_f, vec_d>;
     const size_t n = std::distance(first1, last1);
     const size_t s = vec::size();
     const size_t m = n & (-s);
@@ -314,7 +314,7 @@ template<typename T, typename InputIt1, typename InputIt2, typename InputIt3, ty
     , bool> = true>
 inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt3 first3, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
-    using vec = std::conditional_t<std::is_same_v<T, float>, Vec8f, Vec4d>;
+    using vec = std::conditional_t<std::is_same_v<T, float>, vec_f, vec_d>;
     const size_t n = std::distance(first1, last1);
     const size_t s = vec::size();
     const size_t m = n & (-s);
