@@ -5,6 +5,14 @@ project(vstatTests LANGUAGES CXX)
 include(../cmake/project-is-top-level.cmake)
 include(../cmake/windows-set-path.cmake)
 
+if(PROJECT_IS_TOP_LEVEL)
+    find_package(vstat REQUIRED)
+    enable_testing()
+endif()
+
+add_executable(vstat_test source/vstat_test.cpp)
+
+
 # ---- Doctest ----
 find_package(doctest REQUIRED)
 
@@ -15,17 +23,17 @@ find_package(GSL REQUIRED)
 find_package(Boost REQUIRED)
 
 # ---- Linasm ----
-include(FindPkgConfig)
-pkg_search_module(LINASM linasm REQUIRED)
-
-if(PROJECT_IS_TOP_LEVEL)
-  find_package(vstat REQUIRED)
-  enable_testing()
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(linasm IMPORTED_TARGET linasm)
+if(linasm_FOUND)
+    target_link_libraries(vstat_test PRIVATE PkgConfig::linasm)
+else()
+        message(FATAL_ERROR "LinAsm dependency could not be found.")
 endif()
 
-add_executable(vstat_test source/vstat_test.cpp)
-target_link_libraries(vstat_test PRIVATE vstat::vstat GSL::gsl ${LINASM_LIBRARIES} doctest::doctest)
-target_include_directories(vstat_test SYSTEM PRIVATE doctest::doctest)
+
+
+target_link_libraries(vstat_test PRIVATE vstat::vstat GSL::gsl doctest::doctest)
 target_compile_features(vstat_test PRIVATE cxx_std_17)
 
 if(MSVC)
