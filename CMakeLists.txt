@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
 
 include(cmake/prelude.cmake)
 
@@ -9,6 +9,9 @@ project(
     HOMEPAGE_URL "https://github.com/heal-research/vstat"
     LANGUAGES CXX
 )
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 docs_early_return()
 
@@ -29,17 +32,12 @@ target_include_directories(
     INTERFACE
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
 )
+target_compile_features(vstat_vstat INTERFACE cxx_std_17)
 
 # ---- Dependencies ----
-find_package(vectorclass)
-if (vectorclass_FOUND)
-    target_link_libraries(vstat_vstat INTERFACE vectorclass::vectorclass)
-else ()
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(vectorclass REQUIRED IMPORTED_TARGET vectorclass)
-    target_link_libraries(vstat_vstat INTERFACE PkgConfig::vectorclass)
-endif ()
-target_compile_features(vstat_vstat INTERFACE cxx_std_17)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(eve REQUIRED IMPORTED_TARGET eve)
+target_link_libraries(vstat_vstat INTERFACE PkgConfig::eve)
 
 if (NOT VSTAT_NAMESPACE)
     set(VSTAT_NAMESPACE vstat)

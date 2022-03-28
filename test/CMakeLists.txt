@@ -35,6 +35,7 @@ endif()
 
 target_link_libraries(vstat_test PRIVATE vstat::vstat GSL::gsl doctest::doctest)
 target_compile_features(vstat_test PRIVATE cxx_std_17)
+target_compile_options(vstat_test PRIVATE "-mavx2;-mfma")
 
 if(MSVC)
     target_compile_options(vstat_test PUBLIC "$<$<CONFIG:Release>:/O2;/std:c++latest>")

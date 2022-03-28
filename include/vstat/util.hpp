@@ -52,14 +52,6 @@ namespace VSTAT_NAMESPACE::detail {
     template<typename T, typename... Ts>
     inline constexpr bool are_same_v = are_same<T, Ts...>::value;
 
-    struct identity {
-        template <typename T>
-        constexpr auto operator()(T&& v) const noexcept -> decltype(std::forward<T>(v))
-        {
-            return std::forward<T>(v);
-        }
-    };
-
     template<typename T, typename = void>
     struct is_iterator : std::false_type {
     };
@@ -73,5 +65,10 @@ namespace VSTAT_NAMESPACE::detail {
 
     template<typename T>
     inline constexpr bool is_iterator_v = is_iterator<T>::value;
+
+    template<typename T>
+    requires detail::is_iterator_v<T>
+    using iterator_value_t = typename std::iterator_traits<T>::value_type;
+
 } // namespace VSTAT_NAMESPACE::detail
 #endif

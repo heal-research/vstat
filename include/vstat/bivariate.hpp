@@ -71,16 +71,18 @@ struct bivariate_accumulator {
         sum_xy += f * dx * dy;
     }
 
-    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_vcl_type_v<T>, bool> = true>
+    template <typename U>
+    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
     inline void operator()(U const* x, U const* y)
     {
-        (*this)(T().load(x), T().load(y));
+        (*this)(T{x}, T{y});
     }
 
-    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_vcl_type_v<T>, bool> = true>
+    template <typename U>
+    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
     inline void operator()(U const* x, U const* y, U const* w)
     {
-        (*this)(T().load(x), T().load(y), T().load(w));
+        (*this)(T{x}, T{y}, T{w});
     }
 
     // performs a reduction on the vector types and returns the sums and the squared residuals sums
@@ -90,7 +92,7 @@ struct bivariate_accumulator {
             return { sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy };
         } else {
             auto [sxx, syy, sxy] = combine(sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy);
-            return { horizontal_add(sum_w), horizontal_add(sum_x), horizontal_add(sum_y), sxx, syy, sxy };
+            return { eve::reduce(sum_w), eve::reduce(sum_x), eve::reduce(sum_y), sxx, syy, sxy };
         }
     }
 

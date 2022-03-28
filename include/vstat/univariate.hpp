@@ -49,18 +49,18 @@ struct univariate_accumulator {
         sum_xx += dx * dx / (w * sum_w * sum_w_old);
     }
 
-    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_vcl_type_v<T>, bool> = true>
+    template<typename U>
+    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T> 
     inline void operator()(U const* x) noexcept
     {
-        static_assert(sizeof(U) == T::size());
-        (*this)(T().load(x));
+        (*this)(T{x});
     }
 
-    template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_vcl_type_v<T>, bool> = true>
+    template<typename U>
+    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T> 
     inline void operator()(U const* x, U const* w) noexcept
     {
-        static_assert(sizeof(U) == T::size());
-        (*this)(T().load(x), T().load(w));
+        (*this)(T{x}, T{w});
     }
 
     // performs the reductions and returns { sum_w, sum_x, sum_xx }
@@ -69,7 +69,7 @@ struct univariate_accumulator {
         if constexpr (std::is_floating_point_v<T>) {
             return { sum_w, sum_x, sum_xx };
         } else {
-            return { horizontal_add(sum_w), horizontal_add(sum_x), combine(sum_w, sum_x, sum_xx) };
+            return { eve::reduce(sum_w), eve::reduce(sum_x), combine(sum_w, sum_x, sum_xx) };
         }
     }
 

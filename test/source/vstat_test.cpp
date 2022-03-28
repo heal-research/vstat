@@ -172,7 +172,7 @@ TEST_SUITE("correctness")
 
         SUBCASE("float")
         {
-            auto stats = vstat::univariate::accumulate<float>(xd.begin(), xd.end(), vstat::detail::identity {});
+            auto stats = vstat::univariate::accumulate<float>(xd.begin(), xd.end(), std::identity {});
             CHECK(std::abs(stats.mean - gsl_mean_flt) < 1e-6);
             CHECK(std::abs(stats.variance - gsl_var_flt) < 1e-5);
         }
@@ -224,7 +224,7 @@ TEST_SUITE("correctness")
         {
             auto gsl_var_dbl = gsl_stats_variance(xd.data(), 1, xd.size());
             auto gsl_mean_dbl = gsl_stats_mean(xd.data(), 1, xd.size());
-            auto stats = vstat::univariate::accumulate<double>(xd.begin(), xd.end(), vstat::detail::identity {});
+            auto stats = vstat::univariate::accumulate<double>(xd.begin(), xd.end(), std::identity {});
             CHECK(std::abs(stats.mean - gsl_mean_dbl) < 1e-6);
             CHECK(std::abs(stats.variance - gsl_var_dbl) < 1e-6);
         }
@@ -319,6 +319,7 @@ TEST_SUITE("performance")
 
         ankerl::nanobench::Bench b;
         b.performanceCounters(true).minEpochIterations(100).batch(n);
+        b.output(nullptr);
 
         // print some runtime stats for different data sizes
         std::vector<int> sizes { 1000, 10000 };
@@ -329,16 +330,19 @@ TEST_SUITE("performance")
 
         SUBCASE("vstat accumulator")
         {
+            using wide_f = eve::wide<float>;
+            using wide_d = eve::wide<double>;
+
             double var, count;
             for (auto s : sizes) {
                 var = count = 0;
                 b.batch(s).run("vstat acc variance float " + std::to_string(s), [&]() {
                     ++count;
-                    vstat::univariate_accumulator<Vec8f> acc(Vec8f().load(xf));
-                    constexpr auto sz = Vec8f::size();
+                    vstat::univariate_accumulator<wide_f> acc(wide_f{xf});
+                    constexpr auto sz = wide_f::size();
                     size_t m = s & (-sz);
                     for (size_t i = sz; i < m; i += sz) {
-                        acc(Vec8f().load(xf + i));
+                        acc(wide_f{xf + i});
                     }
                     var += vstat::univariate_statistics(acc).variance;
                 });
@@ -348,11 +352,11 @@ TEST_SUITE("performance")
                 var = count = 0;
                 b.batch(s).run("vstat acc variance float weighted " + std::to_string(s), [&]() {
                     ++count;
-                    vstat::univariate_accumulator<Vec8f> acc(Vec8f().load(xf), Vec8f().load(wf));
-                    constexpr auto sz = Vec8f::size();
+                    vstat::univariate_accumulator<wide_f> acc(wide_f{xf}, wide_f{wf});
+                    constexpr auto sz = wide_f::size();
                     size_t m = s & (-sz);
                     for (size_t i = sz; i < m; i += sz) {
-                        acc(Vec8f().load(xf + i), Vec8f().load(wf + i));
+                        acc(wide_f{xf + i}, wide_f{wf + i});
                     }
                     var += vstat::univariate_statistics(acc).variance;
                 });
@@ -362,11 +366,11 @@ TEST_SUITE("performance")
                 var = count = 0;
                 b.batch(s).run("vstat acc variance double " + std::to_string(s), [&]() {
                     ++count;
-                    vstat::univariate_accumulator<Vec4d> acc(Vec4d().load(xd));
-                    constexpr auto sz = Vec4d::size();
+                    vstat::univariate_accumulator<wide_d> acc(wide_d{xd});
+                    constexpr auto sz = wide_d::size();
                     size_t m = s & (-sz);
                     for (size_t i = sz; i < m; i += sz) {
-                        acc(Vec4d().load(xd + i));
+                        acc(wide_d{xd + i});
                     }
                     var += vstat::univariate_statistics(acc).variance;
                 });
@@ -376,11 +380,11 @@ TEST_SUITE("performance")
                 var = count = 0;
                 b.batch(s).run("vstat acc variance double weighted " + std::to_string(s), [&]() {
                     ++count;
-                    vstat::univariate_accumulator<Vec4d> acc(Vec4d().load(xd), Vec4d().load(wd));
-                    constexpr auto sz = Vec4d::size();
+                    vstat::univariate_accumulator<wide_d> acc(wide_d{xd}, wide_d{wd});
+                    constexpr auto sz = wide_d::size();
                     size_t m = s & (-sz);
                     for (size_t i = sz; i < m; i += sz) {
-                        acc(Vec4d().load(xd + i), Vec4d().load(wd + i));
+                        acc(wide_d{xd + i}, wide_d{wd + i});
                     }
                     var += vstat::univariate_statistics(acc).variance;
                 });
@@ -500,6 +504,9 @@ TEST_SUITE("performance")
                 });
             }
         }
+
+        
+        b.render(ankerl::nanobench::templates::csv(), std::cout);
     }
 
     TEST_CASE("bivariate")

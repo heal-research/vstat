@@ -1,6 +1,5 @@
 {
   description = "vstat dev";
-  nixConfig.bash-prompt = "\n\\[\\e[93m\\e[1m\\][vstat-dev:\\[\\e[92m\\e[1m\\]\\w]$\\[\\e[0m\\] ";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nur.url = "github:nix-community/NUR";
@@ -29,6 +28,7 @@
                 gsl
                 pkg-config
                 pkgs.nur.repos.foolnotion.cmake-init
+                pkgs.nur.repos.foolnotion.eve
                 pkgs.nur.repos.foolnotion.linasm
                 pkgs.nur.repos.foolnotion.vectorclass
               ];
