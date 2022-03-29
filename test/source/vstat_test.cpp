@@ -319,6 +319,7 @@ TEST_SUITE("performance")
 
         ankerl::nanobench::Bench b;
         b.performanceCounters(true).minEpochIterations(100).batch(n);
+        b.output(nullptr);
 
         // print some runtime stats for different data sizes
         std::vector<int> sizes { 1000, 10000 };
@@ -332,7 +333,7 @@ TEST_SUITE("performance")
             double var, count;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat acc variance float " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat acc;variance;float", [&]() {
                     ++count;
                     vstat::univariate_accumulator<Vec8f> acc(Vec8f().load(xf));
                     constexpr auto sz = Vec8f::size();
@@ -346,7 +347,7 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat acc variance float weighted " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat acc;weighted variance;float" , [&]() {
                     ++count;
                     vstat::univariate_accumulator<Vec8f> acc(Vec8f().load(xf), Vec8f().load(wf));
                     constexpr auto sz = Vec8f::size();
@@ -360,7 +361,7 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat acc variance double " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat acc;variance;double", [&]() {
                     ++count;
                     vstat::univariate_accumulator<Vec4d> acc(Vec4d().load(xd));
                     constexpr auto sz = Vec4d::size();
@@ -374,7 +375,7 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat acc variance double weighted " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat acc;weighted variance;double", [&]() {
                     ++count;
                     vstat::univariate_accumulator<Vec4d> acc(Vec4d().load(xd), Vec4d().load(wd));
                     constexpr auto sz = Vec4d::size();
@@ -393,7 +394,7 @@ TEST_SUITE("performance")
             double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat variance float " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat;variance;float", [&]() {
                     ++count;
                     var += vstat::univariate::accumulate<float>(xf, s).variance;
                 });
@@ -401,7 +402,7 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat variance double " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat;variance;double", [&]() {
                     ++count;
                     var += vstat::univariate::accumulate<double>(xd, s).variance;
                 });
@@ -414,7 +415,7 @@ TEST_SUITE("performance")
             double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat variance float weighted " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat;weighted variance;float", [&]() {
                     ++count;
                     var += vstat::univariate::accumulate<float>(xf, wf, s).variance;
                 });
@@ -422,7 +423,7 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat variance double weighted " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat;weighted variance;double", [&]() {
                     ++count;
                     var += vstat::univariate::accumulate<double>(xd, wd, s).variance;
                 });
@@ -435,7 +436,7 @@ TEST_SUITE("performance")
             double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("linasm variance float " + std::to_string(s), [&]() {
+                b.batch(s).run("linasm;variance;float", [&]() {
                     ++count;
                     auto mean = Statistics::Mean(xf, s);
                     var += Statistics::Variance(xf, s, mean);
@@ -443,7 +444,7 @@ TEST_SUITE("performance")
             }
 
             for (auto s : sizes) {
-                b.batch(s).run("linasm variance double " + std::to_string(s), [&]() {
+                b.batch(s).run("linasm;variance;double", [&]() {
                     ++count;
                     auto mean = Statistics::Mean(xd, s);
                     var += Statistics::Variance(xd, s, mean);
@@ -457,7 +458,7 @@ TEST_SUITE("performance")
             double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("boost variance float " + std::to_string(s), [&]() {
+                b.batch(s).run("boost;variance;float", [&]() {
                     ++count;
                     ba::accumulator_set<float, ba::features<ba::tag::variance>> acc;
                     for (int i = 0; i < s; ++i) {
@@ -469,7 +470,7 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("boost variance double " + std::to_string(s), [&]() {
+                b.batch(s).run("boost;variance;double", [&]() {
                     ++count;
                     ba::accumulator_set<double, ba::features<ba::tag::variance>> acc;
                     for (int i = 0; i < s; ++i) {
@@ -486,7 +487,7 @@ TEST_SUITE("performance")
             double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("gsl variance float " + std::to_string(s), [&]() {
+                b.batch(s).run("gsl;variance;float", [&]() {
                     ++count;
                     var += gsl_stats_float_variance(xf, 1, s);
                 });
@@ -494,12 +495,15 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("gsl variance double " + std::to_string(s), [&]() {
+                b.batch(s).run("gsl;variance;double", [&]() {
                     ++count;
                     var += gsl_stats_variance(xd, 1, s);
                 });
             }
         }
+
+
+        b.render(ankerl::nanobench::templates::csv(), std::cout);
     }
 
     TEST_CASE("bivariate")
@@ -532,6 +536,7 @@ TEST_SUITE("performance")
 
         ankerl::nanobench::Bench b;
         b.performanceCounters(true).minEpochIterations(100).batch(n);
+        b.output(nullptr);
 
         // print some runtime stats for different data sizes
         std::vector<int> sizes { 1000, 10000 };
@@ -546,7 +551,7 @@ TEST_SUITE("performance")
             double count = 0;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat covariance float " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat;covariance;float", [&]() {
                     ++count;
                     var += vstat::bivariate::accumulate<float>(xf, yf, s).covariance;
                 });
@@ -554,7 +559,7 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("vstat covariance double " + std::to_string(s), [&]() {
+                b.batch(s).run("vstat;covariance;double", [&]() {
                     ++count;
                     var += vstat::bivariate::accumulate<double>(xd, yd, s).covariance;
                 });
@@ -568,7 +573,7 @@ TEST_SUITE("performance")
             var = count = 0;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("linasm covariance float " + std::to_string(s), [&]() {
+                b.batch(s).run("linasm;covariance;float", [&]() {
                     ++count;
                     auto xm = Statistics::Mean(xf, s);
                     auto ym = Statistics::Mean(yf, s);
@@ -578,7 +583,7 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("linasm covariance double " + std::to_string(s), [&]() {
+                b.batch(s).run("linasm;covariance;double", [&]() {
                     ++count;
                     auto xm = Statistics::Mean(xd, s);
                     auto ym = Statistics::Mean(yd, s);
@@ -594,7 +599,7 @@ TEST_SUITE("performance")
             var = count = 0;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("boost covariance float " + std::to_string(s), [&]() {
+                b.batch(s).run("boost;covariance;float", [&]() {
                     ++count;
                     ba::accumulator_set<float, ba::stats<ba::tag::covariance<float, ba::tag::covariate1>>> acc;
                     for (int i = 0; i < s; ++i) {
@@ -606,7 +611,7 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("boost covariance double " + std::to_string(s), [&]() {
+                b.batch(s).run("boost;covariance;double", [&]() {
                     ++count;
                     ba::accumulator_set<double, ba::stats<ba::tag::covariance<double, ba::tag::covariate1>>> acc;
                     for (int i = 0; i < s; ++i) {
@@ -624,7 +629,7 @@ TEST_SUITE("performance")
             var = count = 0;
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("gsl covariance float " + std::to_string(s), [&]() {
+                b.batch(s).run("gsl;covariance;float", [&]() {
                     ++count;
                     var += gsl_stats_float_covariance(xf, 1, yf, 1, s);
                 });
@@ -632,11 +637,14 @@ TEST_SUITE("performance")
 
             for (auto s : sizes) {
                 var = count = 0;
-                b.batch(s).run("gsl covariance double " + std::to_string(s), [&]() {
+                b.batch(s).run("gsl;covariance;double" + std::to_string(s), [&]() {
                     ++count;
                     var += gsl_stats_covariance(xd, 1, yd, 1, s);
                 });
             }
         }
+
+
+        b.render(ankerl::nanobench::templates::csv(), std::cout);
     }
 }
