@@ -5,7 +5,6 @@
 #define VSTAT_CORRELATION_HPP
 
 #include "combine.hpp"
-#include <type_traits>
 
 namespace VSTAT_NAMESPACE {
 
@@ -154,7 +153,7 @@ struct bivariate_statistics {
 
 inline auto operator<<(std::ostream& os, bivariate_statistics const& stats) -> std::ostream&
 {
-    os << "count:            \t" << stats.count
+    os << "count:              \t" << stats.count
        << "\nsum_x:            \t" << stats.sum_x
        << "\nssr_x:            \t" << stats.ssr_x
        << "\nmean_x:           \t" << stats.mean_x

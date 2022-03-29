@@ -347,7 +347,7 @@ TEST_SUITE("performance")
 
         ankerl::nanobench::Bench b;
         b.performanceCounters(true).minEpochIterations(100).batch(n);
-        //b.output(nullptr);
+        b.output(nullptr);
 
         // print some runtime stats for different data sizes
         std::vector<int> sizes { 1000, 10000 };
@@ -532,9 +532,8 @@ TEST_SUITE("performance")
                 });
             }
         }
-
         
-        //b.render(ankerl::nanobench::templates::csv(), std::cout);
+        b.render(ankerl::nanobench::templates::csv(), std::cout);
     }
 
     TEST_CASE("bivariate")
@@ -567,7 +566,7 @@ TEST_SUITE("performance")
 
         ankerl::nanobench::Bench b;
         b.performanceCounters(true).minEpochIterations(100).batch(n);
-        //b.output(nullptr);
+        b.output(nullptr);
 
         // print some runtime stats for different data sizes
         std::vector<int> sizes { 1000, 10000 };
@@ -675,6 +674,6 @@ TEST_SUITE("performance")
             }
         }
 
-        //b.render(ankerl::nanobench::templates::csv(), std::cout);
+        b.render(ankerl::nanobench::templates::csv(), std::cout);
     }
 }

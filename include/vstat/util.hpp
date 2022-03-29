@@ -70,5 +70,8 @@ namespace VSTAT_NAMESPACE::detail {
     requires detail::is_iterator_v<T>
     using iterator_value_t = typename std::iterator_traits<T>::value_type;
 
+    template<typename F, typename... Args>
+    requires std::is_invocable_v<F, Args...>
+    inline constexpr bool is_arithmetic_result_v = std::is_arithmetic_v<std::remove_reference_t<std::invoke_result_t<F, Args...>>>;
 } // namespace VSTAT_NAMESPACE::detail
 #endif
