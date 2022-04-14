@@ -39,7 +39,7 @@ target_compile_features(vstat_test PRIVATE cxx_std_17)
 if(MSVC)
     target_compile_options(vstat_test PUBLIC "$<$<CONFIG:Release>:/O2;/std:c++latest>")
 else()
-    target_compile_options(vstat_test PUBLIC "$<$<CONFIG:Release>:-march=x86-64;-mavx2;-mfma;-fno-math-errno>")
+    target_compile_options(vstat_test PUBLIC "$<$<CONFIG:Release>:-fno-math-errno>")
 endif()
 
 add_test(NAME vstat_test COMMAND vstat_test)
