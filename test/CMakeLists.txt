@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
 
 project(vstatTests LANGUAGES CXX)
 
@@ -31,10 +31,8 @@ else()
         message(FATAL_ERROR "LinAsm dependency could not be found.")
 endif()
 
-
-
 target_link_libraries(vstat_test PRIVATE vstat::vstat GSL::gsl doctest::doctest)
-target_compile_features(vstat_test PRIVATE cxx_std_17)
+target_compile_features(vstat_test PRIVATE cxx_std_20)
 
 if(MSVC)
     target_compile_options(vstat_test PUBLIC "$<$<CONFIG:Release>:/O2;/std:c++latest>")

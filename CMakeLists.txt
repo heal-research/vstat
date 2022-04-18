@@ -32,7 +32,7 @@ target_include_directories(
     INTERFACE
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
 )
-target_compile_features(vstat_vstat INTERFACE cxx_std_17)
+target_compile_features(vstat_vstat INTERFACE cxx_std_20)
 
 # ---- Dependencies ----
 find_package(PkgConfig REQUIRED)

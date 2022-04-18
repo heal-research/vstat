@@ -13,8 +13,7 @@
             inherit system;
             overlays = [ nur.overlay ];
           };
-
-          buildTests = if "${system}" == "aarch64-linux" then false else true;
+          buildTesting = pkgs.targetPlatform.isx86_64;
         in rec
         {
           defaultPackage = pkgs.gcc11Stdenv.mkDerivation {
@@ -23,7 +22,7 @@
 
             cmakeFlags = [
               "-DCMAKE_BUILD_TYPE=Release"
-              "-DBUILD_TESTING=${if buildTests then "ON" else "OFF"}"
+              "-DBUILD_TESTING=${if buildTesting then "ON" else "OFF"}"
             ];
             nativeBuildInputs = with pkgs; [ cmake ];
             buildInputs = with pkgs; [
@@ -35,14 +34,14 @@
                 pkgs.nur.repos.foolnotion.cmake-init
                 pkgs.nur.repos.foolnotion.eve
                 pkgs.nur.repos.foolnotion.vectorclass
-              ] ++ lib.optionals buildTests [ pkgs.nur.repos.foolnotion.linasm ];
+              ] ++ lib.optionals buildTesting [ pkgs.nur.repos.foolnotion.linasm ];
           };
 
           devShell = pkgs.gcc11Stdenv.mkDerivation {
             name = "vstat-env";
             hardeningDisable = [ "all" ];
             impureUseNativeOptimizations = true;
-            nativeBuildInputs = with pkgs; [ cmake clang_13 clang-tools cppcheck ];
+            nativeBuildInputs = with pkgs; [ cmake clang_14 clang-tools cppcheck ];
 
             buildInputs = defaultPackage.buildInputs;
 
