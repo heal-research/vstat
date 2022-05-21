@@ -16,8 +16,8 @@
           buildTesting = pkgs.targetPlatform.isx86_64;
         in rec
         {
-          defaultPackage = pkgs.gcc11Stdenv.mkDerivation {
-            name = "vstat-test";
+          defaultPackage = pkgs.gcc12Stdenv.mkDerivation {
+            name = "vstat";
             src = self;
 
             cmakeFlags = [
@@ -37,7 +37,7 @@
               ] ++ lib.optionals buildTesting [ pkgs.nur.repos.foolnotion.linasm ];
           };
 
-          devShell = pkgs.gcc11Stdenv.mkDerivation {
+          devShell = pkgs.gcc12Stdenv.mkDerivation {
             name = "vstat-env";
             hardeningDisable = [ "all" ];
             impureUseNativeOptimizations = true;
@@ -46,7 +46,7 @@
             buildInputs = defaultPackage.buildInputs;
 
             shellHook = ''
-              LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [ pkgs.gcc11Stdenv.cc.cc.lib ]};
+              LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [ pkgs.gcc12Stdenv.cc.cc.lib ]};
               '';
           };
         }
