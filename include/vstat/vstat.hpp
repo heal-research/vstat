@@ -8,6 +8,7 @@
 #include "univariate.hpp"
 
 #include <algorithm>
+#include <functional>
 
 namespace VSTAT_NAMESPACE {
 
