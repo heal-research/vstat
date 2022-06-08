@@ -6,6 +6,7 @@
 
 #include "bivariate.hpp"
 #include "univariate.hpp"
+#include "functional"
 
 #include <algorithm>
 
