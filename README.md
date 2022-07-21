@@ -132,8 +132,9 @@ sample covariance:      7.55
 
 The methods above accept a batch of data and calculate relevant statistics. If the data is streaming, then one can also use _accumulators_. The _accumulator_ is a lower-level object that is able to perform calculations online as new data arrives:
 ```cpp
-univariate_accumulator<float> acc(1.0); // it's important to initialize the accumulator!
-acc(2.0); // then we can stream values to it
+univariate_accumulator<float> acc;
+acc(1.0);
+acc(2.0);
 acc(3.0);
 acc(4.0);
 auto stats = univariate_statistics(acc);
