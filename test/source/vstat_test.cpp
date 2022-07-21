@@ -73,7 +73,8 @@ TEST_SUITE("usage")
 
         SUBCASE("accumulator")
         {
-            vstat::univariate_accumulator<float> acc(1.0);
+            vstat::univariate_accumulator<float> acc;
+            acc(1.0);
             acc(2.0);
             acc(3.0);
             acc(4.0);
@@ -84,7 +85,8 @@ TEST_SUITE("usage")
 
         SUBCASE("accumulator weighted")
         {
-            vstat::univariate_accumulator<float> acc(1.0, 2.0);
+            vstat::univariate_accumulator<float> acc;
+            acc(1.0, 2.0);
             acc(2.0, 4.0);
             acc(3.0, 6.0);
             auto stats = vstat::univariate_statistics(acc);
@@ -127,8 +129,8 @@ TEST_SUITE("usage")
 
         SUBCASE("accumulator")
         {
-            vstat::bivariate_accumulator<float> acc(x[0], y[0]);
-            for (size_t i = 1; i < n; ++i) {
+            vstat::bivariate_accumulator<float> acc;
+            for (size_t i = 0; i < n; ++i) {
                 acc(x[i], y[i]);
             }
             vstat::bivariate_statistics stats(acc);
@@ -208,12 +210,14 @@ TEST_SUITE("correctness")
             CHECK(stats1.mean == stats2.mean);
             CHECK(std::abs(stats1.variance - stats2.variance) < 1e-5);
 
-            vstat::univariate_accumulator<float> a1(x[0]);
-            vstat::univariate_accumulator<float> a2(y[0], w[0]);
-            for (size_t i = 1; i < std::size(x); ++i)
+            vstat::univariate_accumulator<float> a1;
+            vstat::univariate_accumulator<float> a2;
+            for (size_t i = 0; i < std::size(x); ++i) {
                 a1(x[i]);
-            for (size_t i = 1; i < std::size(y); ++i)
+            }
+            for (size_t i = 0; i < std::size(y); ++i) {
                 a2(y[i], w[i]);
+            }
             CHECK(std::abs(vstat::univariate_statistics(a1).variance - vstat::univariate_statistics(a2).variance) < 1e-6);
 
             auto stats3 = vstat::univariate::accumulate<float>(y, w, std::size(y), std::multiplies<float> {});
@@ -335,10 +339,10 @@ TEST_SUITE("performance")
                 var = count = 0;
                 b.batch(s).run("vstat acc;variance;float", [&]() {
                     ++count;
-                    vstat::univariate_accumulator<Vec8f> acc(Vec8f().load(xf));
+                    vstat::univariate_accumulator<Vec8f> acc;
                     constexpr auto sz = Vec8f::size();
                     size_t m = s & (-sz);
-                    for (size_t i = sz; i < m; i += sz) {
+                    for (size_t i = 0; i < m; i += sz) {
                         acc(Vec8f().load(xf + i));
                     }
                     var += vstat::univariate_statistics(acc).variance;
@@ -349,10 +353,10 @@ TEST_SUITE("performance")
                 var = count = 0;
                 b.batch(s).run("vstat acc;weighted variance;float" , [&]() {
                     ++count;
-                    vstat::univariate_accumulator<Vec8f> acc(Vec8f().load(xf), Vec8f().load(wf));
+                    vstat::univariate_accumulator<Vec8f> acc;
                     constexpr auto sz = Vec8f::size();
                     size_t m = s & (-sz);
-                    for (size_t i = sz; i < m; i += sz) {
+                    for (size_t i = 0; i < m; i += sz) {
                         acc(Vec8f().load(xf + i), Vec8f().load(wf + i));
                     }
                     var += vstat::univariate_statistics(acc).variance;
@@ -363,10 +367,10 @@ TEST_SUITE("performance")
                 var = count = 0;
                 b.batch(s).run("vstat acc;variance;double", [&]() {
                     ++count;
-                    vstat::univariate_accumulator<Vec4d> acc(Vec4d().load(xd));
+                    vstat::univariate_accumulator<Vec4d> acc;
                     constexpr auto sz = Vec4d::size();
                     size_t m = s & (-sz);
-                    for (size_t i = sz; i < m; i += sz) {
+                    for (size_t i = 0; i < m; i += sz) {
                         acc(Vec4d().load(xd + i));
                     }
                     var += vstat::univariate_statistics(acc).variance;
@@ -377,10 +381,10 @@ TEST_SUITE("performance")
                 var = count = 0;
                 b.batch(s).run("vstat acc;weighted variance;double", [&]() {
                     ++count;
-                    vstat::univariate_accumulator<Vec4d> acc(Vec4d().load(xd), Vec4d().load(wd));
+                    vstat::univariate_accumulator<Vec4d> acc;
                     constexpr auto sz = Vec4d::size();
                     size_t m = s & (-sz);
-                    for (size_t i = sz; i < m; i += sz) {
+                    for (size_t i = 0; i < m; i += sz) {
                         acc(Vec4d().load(xd + i), Vec4d().load(wd + i));
                     }
                     var += vstat::univariate_statistics(acc).variance;

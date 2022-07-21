@@ -11,25 +11,11 @@ namespace VSTAT_NAMESPACE {
 
 template <typename T>
 struct bivariate_accumulator {
-    bivariate_accumulator(T x, T y, T w) // NOLINT
-        : sum_w{w}
-        , sum_x{x}
-        , sum_y{y}
-        , sum_xx{0}
-        , sum_yy{0}
-        , sum_xy{0}
-    {
-    }
-
-    bivariate_accumulator(T x, T y)
-        : bivariate_accumulator(x, y, T { 1.0 })
-    {
-    }
-
     static auto load_state(T sx, T sy, T sw, T sxx, T syy, T sxy) -> bivariate_accumulator<T> // NOLINT
     {
-        bivariate_accumulator<T> acc(T { 0 }, T { 0 }, T { 0 });
+        bivariate_accumulator<T> acc;
         acc.sum_w = sw;
+        acc.sum_w_old = sw;
         acc.sum_x = sx;
         acc.sum_y = sy;
         acc.sum_xx = sxx;
@@ -43,7 +29,6 @@ struct bivariate_accumulator {
         T dx = x * sum_w - sum_x;
         T dy = y * sum_w - sum_y;
 
-        auto sum_w_old = sum_w;
         sum_w += 1;
 
         T f = 1. / (sum_w * sum_w_old);
@@ -53,6 +38,8 @@ struct bivariate_accumulator {
 
         sum_x += x;
         sum_y += y;
+
+        sum_w_old = sum_w;
     }
 
     inline void operator()(T x, T y, T w) // NOLINT
@@ -62,13 +49,14 @@ struct bivariate_accumulator {
 
         sum_x += x * w;
         sum_y += y * w;
-        auto sum_w_old = sum_w;
         sum_w += w;
 
         T f = w / (sum_w * sum_w_old);
         sum_xx += f * dx * dx;
         sum_yy += f * dy * dy;
         sum_xy += f * dx * dy;
+
+        sum_w_old = sum_w;
     }
 
     template <typename U, std::enable_if_t<std::is_floating_point_v<U> && detail::is_vcl_type_v<T>, bool> = true>
@@ -94,15 +82,17 @@ struct bivariate_accumulator {
         }
     }
 
+private:
     // sum of weights
-    T sum_w;
+    T sum_w{0};
+    T sum_w_old{1};
     // means
-    T sum_x;
-    T sum_y;
+    T sum_x{0};
+    T sum_y{0};
     // squared residuals
-    T sum_xx;
-    T sum_yy;
-    T sum_xy;
+    T sum_xx{0};
+    T sum_yy{0};
+    T sum_xy{0};
 };
 
 struct bivariate_statistics {
@@ -140,7 +130,7 @@ struct bivariate_statistics {
         sample_variance_y = syy / (sw - 1);
 
         if (!(sxx > 0 && syy > 0)) {
-            correlation = sxx == syy ? 1 : 0;
+            correlation = static_cast<double>(sxx == syy); 
         } else {
             correlation = sxy / std::sqrt(sxx * syy);
         }
