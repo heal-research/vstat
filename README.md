@@ -132,8 +132,9 @@ sample covariance:      7.55
 
 The methods above accept a batch of data and calculate relevant statistics. If the data is streaming, then one can also use _accumulators_. The _accumulator_ is a lower-level object that is able to perform calculations online as new data arrives:
 ```cpp
-univariate_accumulator<float> acc(1.0); // it's important to initialize the accumulator!
-acc(2.0); // then we can stream values to it
+univariate_accumulator<float> acc;
+acc(1.0);
+acc(2.0);
 acc(3.0);
 acc(4.0);
 auto stats = univariate_statistics(acc);
@@ -149,7 +150,7 @@ Sample variance:        1.66667
 The template parameter tells the accumulator how to represent data internally.
 
 - if a scalar type is provided (e.g. `float` or `double`), the accumulator will perform all operations with scalars (i.e., no SIMD).
-- if a SIMD-type is provided (e.g., `Vec8f`, `Vec4d`) then the accummulator will perform data-parallel operations
+- if a SIMD-type is provided (e.g., `eve::wide`) then the accumulator will perform data-parallel operations
 
 This allows the user to combine accumulators, for example using a SIMD-enabled accumulator to process the bulk of the data and a scalar accumulator for the left-over points.
 
@@ -215,7 +216,7 @@ The following libraries have been used for performance comparison in the univari
 
 ### Acknowledgements
 
-[1] [Vector Class Library](https://github.com/vectorclass/version2)
+[1] [Expressive Vector Engine](https://github.com/jfalcou/eve)
 
 [2] [Youngs and Cramer - Some Results Relevant to Choice of Sum and Sum-of-Product Algorithms](https://www.jstor.org/stable/1267176?seq=1)
 
