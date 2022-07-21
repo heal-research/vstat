@@ -10,21 +10,11 @@ namespace VSTAT_NAMESPACE {
 
 template <typename T>
 struct univariate_accumulator {
-    univariate_accumulator(T x, T w)
-        : sum_w(w)
-        , sum_x(x * w)
-        , sum_xx(T { 0 })
-    {
-    }
-
-    explicit univariate_accumulator(T x) : univariate_accumulator(x, T{1.0})
-    {
-    }
-
     static auto load_state(T sw, T sx, T sxx) noexcept -> univariate_accumulator<T>
     {
-        univariate_accumulator<T> acc(T{0}, T{0});
+        univariate_accumulator<T> acc;
         acc.sum_w = sw;
+        acc.sum_w_old = sw;
         acc.sum_x = sx;
         acc.sum_xx = sxx;
         return acc;
@@ -34,19 +24,19 @@ struct univariate_accumulator {
     {
         T dx = sum_w * x - sum_x;
         sum_x += x;
-        auto sum_w_old = sum_w;
         sum_w += 1;
         sum_xx += dx * dx / (sum_w * sum_w_old);
+        sum_w_old = sum_w;
     }
 
     inline void operator()(T x, T w) noexcept
     {
         x *= w;
         T dx = sum_w * x - sum_x * w;
-        auto sum_w_old = sum_w;
-        sum_w += w;
         sum_x += x;
+        sum_w += w;
         sum_xx += dx * dx / (w * sum_w * sum_w_old);
+        sum_w_old = sum_w;
     }
 
     template<typename U>
@@ -74,9 +64,10 @@ struct univariate_accumulator {
     }
 
 private:
-    T sum_w;
-    T sum_x;
-    T sum_xx;
+    T sum_w{0};
+    T sum_w_old{1};
+    T sum_x{0};
+    T sum_xx{0};
 };
 
 struct univariate_statistics {

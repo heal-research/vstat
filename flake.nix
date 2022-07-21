@@ -33,7 +33,7 @@
                 pkg-config
                 pkgs.nur.repos.foolnotion.cmake-init
                 pkgs.nur.repos.foolnotion.eve
-                pkgs.nur.repos.foolnotion.vectorclass
+                pkgs.nur.repos.foolnotion.seer
               ] ++ lib.optionals buildTesting [ pkgs.nur.repos.foolnotion.linasm ];
           };
 
@@ -41,7 +41,7 @@
             name = "vstat-env";
             hardeningDisable = [ "all" ];
             impureUseNativeOptimizations = true;
-            nativeBuildInputs = with pkgs; [ cmake clang_14 clang-tools cppcheck ];
+            nativeBuildInputs = with pkgs; [ cmake clang_14 clang-tools cppcheck gdb ];
 
             buildInputs = defaultPackage.buildInputs;
 

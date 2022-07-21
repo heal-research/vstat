@@ -2,6 +2,7 @@
 # Enable ALL the things! Except not really
 # misc-non-private-member-variables-in-classes: the options don't do anything
 Checks: "*,\
+  -readability-identifier-length,\
   -google-readability-todo,\
   -altera-unroll-loops,\
   -fuchsia-*,\

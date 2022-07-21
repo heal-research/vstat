@@ -7,7 +7,6 @@
 #include <array>
 #include <cstddef>
 #include <cmath>
-#include <iostream>
 #include <tuple>
 #include <eve/wide.hpp>
 #include <eve/module/core.hpp>

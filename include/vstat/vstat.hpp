@@ -54,15 +54,13 @@ inline auto accumulate(InputIt1 first, InputIt1 last, F&& f = F{}) noexcept -> u
     size_t const m = n & (-s);
 
     if (n < s) {
-        univariate_accumulator<scalar_t> scalar_acc(std::invoke(f, *first++));
+        univariate_accumulator<scalar_t> scalar_acc;
         while (first < last) { scalar_acc(std::invoke(f, *first++)); }
         return univariate_statistics(scalar_acc);
     }
 
-    univariate_accumulator<wide> acc(detail::load<wide>(first, f));
-    detail::advance(s, first);
-
-    for (size_t i = s; i < m; i += s) {
+    univariate_accumulator<wide> acc;
+    for (size_t i = 0; i < m; i += s) {
         acc(detail::load<wide>(first, f));
         detail::advance(s, first);
     }
@@ -97,22 +95,14 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F&& f =
     const size_t m = n & (-s);
 
     if (n < s) {
-        univariate_accumulator<scalar_t> scalar_acc(std::invoke(f, *first1++), *first2++);
+        univariate_accumulator<scalar_t> scalar_acc;
         while (first1 < last1) { scalar_acc(std::invoke(f, *first1++), *first2++); }
         return univariate_statistics(scalar_acc);
     }
 
-    univariate_accumulator<wide> acc(
-        detail::load<wide>(first1, f),
-        wide(first2, first2 + s)
-    );
-    detail::advance(s, first1, first2);
-
-    for (size_t i = s; i < m; i += s) {
-        acc(
-            detail::load<wide>(first1, f),
-            wide(first2, first2 + s)
-        );
+    univariate_accumulator<wide> acc;
+    for (size_t i = 0; i < m; i += s) {
+        acc(detail::load<wide>(first1, f), wide(first2, first2 + s));
         detail::advance(s, first1, first2);
     }
 
@@ -154,18 +144,15 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, BinaryO
     const size_t m = n & (-s);
 
     if (n < s) {
-        univariate_accumulator<scalar_t> scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++)));
+        univariate_accumulator<scalar_t> scalar_acc;
         while (first1 < last1) { scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++))); }
         return univariate_statistics(scalar_acc);
     }
 
     auto f = [&](auto a, auto b){ return std::invoke(op, std::invoke(f1, a), std::invoke(f2, b)); };
     std::array<scalar_t, s> x;
-    std::transform(first1, first1 + s, first2, x.begin(), f);
-    univariate_accumulator<wide> acc(wide{x.data()});
-    detail::advance(s, first1, first2);
-
-    for (size_t i = s; i < m; i += s) {
+    univariate_accumulator<wide> acc;
+    for (size_t i = 0; i < m; i += s) {
         std::transform(first1, first1 + s, first2, x.begin(), f);
         acc(wide{x.data()});
         detail::advance(s, first1, first2);
@@ -211,7 +198,7 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt
     const size_t m = n & (-s);
 
     if (n < s) {
-        univariate_accumulator<scalar_t> scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++)), *first3++);
+        univariate_accumulator<scalar_t> scalar_acc;
         while (first1 < last1) { scalar_acc(std::invoke(op, std::invoke(f1, *first1++), std::invoke(f2, *first2++)), *first3++); }
         return univariate_statistics(scalar_acc);
     }
@@ -219,11 +206,8 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt
     auto f = [&](auto a, auto b){ return std::invoke(op, std::invoke(f1, a), std::invoke(f2, b)); };
 
     std::array<scalar_t, s> x;
-    std::transform(first1, first1 + s, first2, x.begin(), f); // apply projections
-    univariate_accumulator<wide> acc(wide(x), wide(first3, first3 + s));
-    detail::advance(s, first1, first2, first3);
-
-    for (size_t i = s; i < m; i += s) {
+    univariate_accumulator<wide> acc;
+    for (size_t i = 0; i < m; i += s) {
         std::transform(first1, first1 + s, first2, x.begin(), f);
         acc(wide(x), wide(first3, first3 + s));
         detail::advance(s, first1, first2, first3);
@@ -311,22 +295,14 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F1&& f1
     const size_t m = n & (-s);
 
     if (n < s) {
-        bivariate_accumulator<scalar_t> scalar_acc(std::invoke(f1, *first1++), std::invoke(f2, *first2++));
+        bivariate_accumulator<scalar_t> scalar_acc;
         while (first1 < last1) { scalar_acc(std::invoke(f1, *first1++), std::invoke(f2, *first2++)); }
         return bivariate_statistics(scalar_acc);
     }
 
-    bivariate_accumulator<wide> acc(
-        detail::load<wide>(first1, f1),
-        detail::load<wide>(first2, f2)
-    );
-    detail::advance(s, first1, first2);
-
-    for (size_t i = s; i < m; i += s) {
-        acc(
-            detail::load<wide>(first1, f1),
-            detail::load<wide>(first2, f2)
-        );
+    bivariate_accumulator<wide> acc;
+    for (size_t i = 0; i < m; i += s) {
+        acc(detail::load<wide>(first1, f1), detail::load<wide>(first2, f2));
         detail::advance(s, first1, first2);
     }
 
@@ -360,19 +336,13 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt
     const size_t m = n & (-s);
 
     if (n < s) {
-        bivariate_accumulator<T> scalar_acc(std::invoke(f1, *first1++), std::invoke(f2, *first2++), *first3++);
+        bivariate_accumulator<T> scalar_acc;
         while (first1 < last1) { scalar_acc(std::invoke(f1, *first1++), std::invoke(f2, *first2++), *first3++); }
         return bivariate_statistics(scalar_acc);
     }
 
-    bivariate_accumulator<wide> acc(
-        wide(first1, f1),
-        wide(first2, f2),
-        wide(first3, first3 + s)
-    );
-    detail::advance(s, first1, first2, first3);
-
-    for (size_t i = s; i < m; i += s) {
+    bivariate_accumulator<wide> acc;
+    for (size_t i = 0; i < m; i += s) {
         acc(
             wide(first1, f1),
             wide(first2, f2),
