@@ -493,7 +493,7 @@ TEST_SUITE("performance")
             }
         }
 
-        SUBCASE("boost accumulators")
+        SUBCASE("boost")
         {
             double var = 0;
             double count = 0;
@@ -606,7 +606,7 @@ TEST_SUITE("performance")
             }
         }
 
-        SUBCASE("vstat")
+        SUBCASE("linasm")
         {
             double var = 0;
             double count = 0;
@@ -632,7 +632,7 @@ TEST_SUITE("performance")
             }
         }
 
-        SUBCASE("vstat")
+        SUBCASE("boost")
         {
             double var = 0;
             double count = 0;
@@ -662,7 +662,7 @@ TEST_SUITE("performance")
             }
         }
 
-        SUBCASE("vstat")
+        SUBCASE("gsl")
         {
             double var = 0;
             double count = 0;
