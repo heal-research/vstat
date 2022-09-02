@@ -1,26 +1,30 @@
 {
   description = "vstat dev";
-  nixConfig.bash-prompt = "\n\\[\\e[93m\\e[1m\\][vstat-dev:\\[\\e[92m\\e[1m\\]\\w]$\\[\\e[0m\\] ";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
-  inputs.nur.url = "github:nix-community/NUR";
+  inputs.foolnotion.url = "github:foolnotion/nur-pkg";
   inputs.nixpkgs.url = "github:nixos/nixpkgs/master";
 
-  outputs = { self, flake-utils, nixpkgs, nur }:
+  outputs = { self, flake-utils, nixpkgs, foolnotion }:
     flake-utils.lib.eachDefaultSystem
       (system:
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [ nur.overlay ];
+            overlays = [ foolnotion.overlay ];
           };
+          buildTesting = pkgs.targetPlatform.isx86_64;
         in rec
         {
-          defaultPackage = pkgs.gcc11Stdenv.mkDerivation {
-            name = "vstat-test";
+          packages.default = pkgs.stdenv.mkDerivation {
+            name = "vstat";
             src = self;
 
-            cmakeFlags = [ "-DCMAKE_BUILD_TYPE=Release" "-DBUILD_TESTING=ON" ];
+            cmakeFlags = [
+              "-DCMAKE_BUILD_TYPE=Release"
+              "-DBUILD_TESTING=${if buildTesting then "ON" else "OFF"}"
+            ];
+
             nativeBuildInputs = with pkgs; [ cmake ];
             buildInputs = with pkgs; [
                 # python environment for bindings and scripting
@@ -28,23 +32,17 @@
                 doctest
                 gsl
                 pkg-config
-                pkgs.nur.repos.foolnotion.cmake-init
-                pkgs.nur.repos.foolnotion.linasm
-                pkgs.nur.repos.foolnotion.vectorclass
-              ];
+                vectorclass
+              ] ++ lib.optionals buildTesting [ linasm ];
           };
 
-          devShell = pkgs.gcc11Stdenv.mkDerivation {
+          devShells.default = pkgs.stdenv.mkDerivation {
             name = "vstat-env";
             hardeningDisable = [ "all" ];
             impureUseNativeOptimizations = true;
-            nativeBuildInputs = with pkgs; [ cmake clang_13 clang-tools cppcheck ];
+            nativeBuildInputs = with pkgs; [ cmake clang_14 clang-tools cppcheck gdb ];
 
-            buildInputs = defaultPackage.buildInputs;
-
-            shellHook = ''
-              LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [ pkgs.gcc11Stdenv.cc.cc.lib ]};
-              '';
+            buildInputs = packages.default.buildInputs;
           };
         }
       );
