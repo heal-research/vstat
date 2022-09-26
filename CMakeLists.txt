@@ -35,9 +35,8 @@ target_include_directories(
 target_compile_features(vstat_vstat INTERFACE cxx_std_20)
 
 # ---- Dependencies ----
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(eve REQUIRED IMPORTED_TARGET eve)
-target_link_libraries(vstat_vstat INTERFACE PkgConfig::eve)
+find_package(eve REQUIRED)
+target_link_libraries(vstat_vstat INTERFACE eve::eve)
 
 if (NOT VSTAT_NAMESPACE)
     set(VSTAT_NAMESPACE vstat)
