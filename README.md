@@ -11,7 +11,7 @@
 
 <img src="./logo/vstat.svg" height="16px" />is a C++17 library of computationally efficient methods for calculating sample statistics (mean, variance, covariance, correlation).
 
-- the implementation builds upon the SIMD abstraction layer provided by the _Vector Class Library_ [1]
+- the implementation builds upon the SIMD abstraction layer provided by the _EVE_ [1]
 - it uses a data-parallel _Youngs and Cramer_ [2] algorithm for numerically stable computations of sums and sums-of-squares.
 - the results from independent data partitions are combined with the approach by _Schubert and Gertz_ [3].
 - the methods are validated for correctness against statistical methods from the _GNU Scientific Library_ [4].
