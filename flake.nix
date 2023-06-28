@@ -12,8 +12,9 @@
           inherit system;
           overlays = [ foolnotion.overlay ];
         };
+        stdenv_ = pkgs.llvmPackages_16.stdenv;
       in rec {
-        packages.default = pkgs.stdenv.mkDerivation {
+        packages.default = stdenv_.mkDerivation {
           name = "vstat";
           src = self;
 
@@ -23,14 +24,14 @@
           buildInputs = with pkgs; [ eve ];
         };
 
-        devShells.default = pkgs.stdenv.mkDerivation {
+        devShells.default = stdenv_.mkDerivation {
           name = "vstat-dev";
           hardeningDisable = [ "all" ];
           impureUseNativeOptimizations = true;
           nativeBuildInputs = with pkgs; [
             cmake
-            clang_15
-            clang-tools
+            clang_16
+            clang-tools_16
             cppcheck
             gdb
           ];
