@@ -8,18 +8,14 @@
 #include "univariate.hpp"
 
 #include <algorithm>
+#include <concepts>
 #include <functional>
 #include <iterator>
 #include <ranges>
 
 namespace VSTAT_NAMESPACE {
 
-// useful concepts
-template <typename T> concept arithmetic = std::is_arithmetic_v<T>;
-template <typename T> concept real = std::is_floating_point_v<T>;
-
 namespace detail {
-
     // utility method to load data into a wide type
     template<eve::simd_value T, std::input_iterator I, typename F>
     requires std::is_invocable_v<F, std::iter_value_t<I>>
@@ -34,20 +30,19 @@ namespace detail {
     auto inline advance(Distance d, Iters&... iters) -> void {
         (std::advance(iters, d), ...);
     }
-
 } // namespace detail
 
 namespace univariate {
 // accumulate a sequence
 // we want to have a type T (e.g. float, double) that specifies the precision of the accumulator
-template<real T, std::input_iterator I, typename F = std::identity>
+template<std::floating_point T, std::input_iterator I, typename F = std::identity>
 requires detail::is_arithmetic_result_v<F, std::iter_value_t<I>>
 inline auto accumulate(I first, I last, F&& f = F{}) noexcept -> univariate_statistics
 {
     using wide = eve::wide<T>;
     auto constexpr s{ wide::size() };
     auto const n{ std::distance(first, last) };
-    auto const m = n & (-s);
+    auto const m = n - n % s;
 
     if (n < s) {
         univariate_accumulator<T> scalar_acc;
@@ -76,14 +71,14 @@ inline auto accumulate(I first, I last, F&& f = F{}) noexcept -> univariate_stat
 }
 
 // accumulate a sequence with weights
-template<real T, std::input_iterator I, std::input_iterator J, typename F = std::identity>
+template<std::floating_point T, std::input_iterator I, std::input_iterator J, typename F = std::identity>
 requires detail::is_arithmetic_result_v<F, std::iter_value_t<I>>
 inline auto accumulate(I first1, I last1, J first2, F&& f = F{}) noexcept -> univariate_statistics
 {
     using wide = eve::wide<T>;
     auto constexpr s{ wide::size() };
     auto const n { std::distance(first1, last1) };
-    const size_t m = n & (-s);
+    const size_t m = n - n % s;
 
     if (n < s) {
         univariate_accumulator<T> scalar_acc;
@@ -112,7 +107,7 @@ inline auto accumulate(I first1, I last1, J first2, F&& f = F{}) noexcept -> uni
 }
 
 // accumulate a binary op between two sequences
-template<real T, std::input_iterator I, std::input_iterator J, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
+template<std::floating_point T, std::input_iterator I, std::input_iterator J, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
 requires std::is_invocable_v<F1, detail::iterator_value_t<I>> and
          std::is_invocable_v<F2, detail::iterator_value_t<J>> and
          std::is_invocable_v<
@@ -130,7 +125,7 @@ inline auto accumulate(I first1, I last1, J first2, BinaryOp&& op = BinaryOp{}, 
     using wide = eve::wide<T>;
     auto constexpr s{ wide::size() };
     auto const n{ std::distance(first1, last1) };
-    auto const m = n & (-s);
+    auto const m = n - n % s;
 
     auto f = [&](auto a, auto b){ return std::invoke(op, std::invoke(f1, a), std::invoke(f2, b)); };
     if (n < s) {
@@ -162,7 +157,7 @@ inline auto accumulate(I first1, I last1, J first2, BinaryOp&& op = BinaryOp{}, 
 }
 
 // accumulate a _weighted_ binary op between two sequences
-template<real T, std::input_iterator I, std::input_iterator J, std::input_iterator K, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
+template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
 requires std::is_arithmetic_v<detail::iterator_value_t<K>> &&
          std::is_invocable_v<F1, detail::iterator_value_t<I>> &&
          std::is_invocable_v<F2, detail::iterator_value_t<J>> &&
@@ -181,7 +176,7 @@ inline auto accumulate(I first1, I last1, J first2, K first3, BinaryOp&& op = Bi
     using wide = eve::wide<T>;
     auto constexpr s{ wide::size() };
     auto const n{ std::distance(first1, last1) };
-    auto const m = n & (-s);
+    auto const m = n - n % s;
 
     auto f = [&](auto a, auto b){ return std::invoke(op, std::invoke(f1, a), std::invoke(f2, b)); };
     if (n < s) {
@@ -214,21 +209,21 @@ inline auto accumulate(I first1, I last1, J first2, K first3, BinaryOp&& op = Bi
 }
 
 // range variants
-template<real T, std::ranges::input_range R, typename F = std::identity>
+template<std::floating_point T, std::ranges::input_range R, typename F = std::identity>
 requires std::is_invocable_v<F, std::ranges::range_value_t<R>>
 inline auto accumulate(R&& r, F&& f = F{}) noexcept -> univariate_statistics
 {
     return univariate::accumulate<T>(std::cbegin(r), std::cend(r), f);
 }
 
-template<real T, std::ranges::input_range R, std::ranges::input_range W, typename F = std::identity>
+template<std::floating_point T, std::ranges::input_range R, std::ranges::input_range W, typename F = std::identity>
 requires std::is_invocable_v<F, std::ranges::range_value_t<R>>
 inline auto accumulate(R&& r, W&& w, F&& f = F{})
 {
     return univariate::accumulate<T>(std::cbegin(r), std::cend(r), std::cbegin(w), f);
 }
 
-template<real T, std::ranges::input_range X, std::ranges::input_range Y, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
+template<std::floating_point T, std::ranges::input_range X, std::ranges::input_range Y, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
 requires std::is_invocable_v<BinaryOp,
                              std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
                              std::invoke_result_t<F2, std::ranges::range_value_t<Y>>> and
@@ -240,7 +235,7 @@ inline auto accumulate(X&& x, Y&& y, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{},
     return univariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), op, f1, f2);
 }
 
-template<real T, std::ranges::input_range X, std::ranges::input_range Y, std::ranges::input_range W, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
+template<std::floating_point T, std::ranges::input_range X, std::ranges::input_range Y, std::ranges::input_range W, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
 requires std::is_invocable_v<BinaryOp,
                              std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
                              std::invoke_result_t<F2, std::ranges::range_value_t<Y>>> and
@@ -257,7 +252,7 @@ namespace bivariate {
 // bivariate case
 
 // iterator variants
-template<real T, std::input_iterator I, std::input_iterator J, typename F1 = std::identity, typename F2 = std::identity>
+template<std::floating_point T, std::input_iterator I, std::input_iterator J, typename F1 = std::identity, typename F2 = std::identity>
 requires detail::is_arithmetic_result_v<F1, std::iter_value_t<I>> and
          detail::is_arithmetic_result_v<F2, std::iter_value_t<J>>
 inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1{}, F2&& f2 = F2{})
@@ -265,7 +260,7 @@ inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1{}, F2&& f2 = F2
     using wide = eve::wide<T>;
     auto constexpr s { wide::size() };
     auto const n { std::distance(first1, last1) };
-    auto const m = n & (-s);
+    auto const m = n - n % s;
 
     if (n < s) {
         bivariate_accumulator<T> scalar_acc;
@@ -293,7 +288,7 @@ inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1{}, F2&& f2 = F2
     return bivariate_statistics(acc);
 }
 
-template<real T, std::input_iterator I, std::input_iterator J, std::input_iterator K, typename F1 = std::identity, typename F2 = std::identity>
+template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K, typename F1 = std::identity, typename F2 = std::identity>
 requires detail::is_arithmetic_result_v<F1, std::iter_value_t<I>> and
          detail::is_arithmetic_result_v<F2, std::iter_value_t<J>> and
          std::is_arithmetic_v<std::iter_value_t<K>>
@@ -302,7 +297,7 @@ inline auto accumulate(I first1, I last1, J first2, K first3, F1&& f1 = F1{}, F2
     using wide = eve::wide<T>;
     auto constexpr s { wide::size() };
     auto const n = std::distance(first1, last1);
-    auto const m = n & (-s);
+    auto const m = n - n % s;
 
     if (n < s) {
         bivariate_accumulator<T> scalar_acc;
@@ -334,7 +329,7 @@ inline auto accumulate(I first1, I last1, J first2, K first3, F1&& f1 = F1{}, F2
 }
 
 // range variants
-template<real T, std::ranges::input_range X, std::ranges::input_range Y, typename F1 = std::identity, typename F2 = std::identity>
+template<std::floating_point T, std::ranges::input_range X, std::ranges::input_range Y, typename F1 = std::identity, typename F2 = std::identity>
 requires detail::is_arithmetic_result_v<F1, std::ranges::range_value_t<X>> and
          detail::is_arithmetic_result_v<F2, std::ranges::range_value_t<Y>>
 inline auto accumulate(X&& x, Y&& y, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
@@ -342,7 +337,7 @@ inline auto accumulate(X&& x, Y&& y, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept ->
     return bivariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), f1, f2);
 }
 
-template<real T, std::ranges::input_range X, std::ranges::input_range Y, std::ranges::input_range W, typename F1 = std::identity, typename F2 = std::identity>
+template<std::floating_point T, std::ranges::input_range X, std::ranges::input_range Y, std::ranges::input_range W, typename F1 = std::identity, typename F2 = std::identity>
 requires detail::is_arithmetic_result_v<F1, std::ranges::range_value_t<X>> and
          detail::is_arithmetic_result_v<F2, std::ranges::range_value_t<Y>> and
          std::is_arithmetic_v<std::ranges::range_value_t<W>>
@@ -351,7 +346,6 @@ inline auto accumulate(X&& x, Y&& y, W&& w, F1&& f1 = F1{}, F2&& f2 = F2{}) noex
     return bivariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), std::cbegin(w), f1, f2);
 }
 } // namespace bivariate
-
 } // namespace VSTAT_NAMESPACE
 
 #endif
