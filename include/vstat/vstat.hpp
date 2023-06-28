@@ -9,46 +9,51 @@
 
 #include <algorithm>
 #include <functional>
+#include <iterator>
+#include <ranges>
 
 namespace VSTAT_NAMESPACE {
 
+// useful concepts
+template <typename T> concept arithmetic = std::is_arithmetic_v<T>;
+template <typename T> concept real = std::is_floating_point_v<T>;
+
 namespace detail {
+
     // utility method to load data into a wide type
-    template<typename T, typename Iterator, typename Callable>
-    requires eve::simd_value<T> && detail::is_iterator_v<Iterator> &&
-             std::is_invocable_v<Callable, detail::iterator_value_t<Iterator>>
-    auto inline load(Iterator iter, Callable&& func) {
-        return [&]<std::size_t ...I>(std::index_sequence<I...>){
-            return T{ func(*(iter + I))... };
+    template<eve::simd_value T, std::input_iterator I, typename F>
+    requires std::is_invocable_v<F, std::iter_value_t<I>>
+    auto inline load(I iter, F&& func) {
+        return [&]<std::size_t ...Idx>(std::index_sequence<Idx...>){
+            return T{ func(*(iter + Idx))... };
         }(std::make_index_sequence<T::size()>{});
     }
 
     // utility method to advance a set of iterators
     template<typename Distance, typename... Iters>
-    constexpr
     auto inline advance(Distance d, Iters&... iters) -> void {
         (std::advance(iters, d), ...);
     }
+
 } // namespace detail
 
 namespace univariate {
 // accumulate a sequence
 // we want to have a type T (e.g. float, double) that specifies the precision of the accumulator
-template<typename T, typename InputIt1, typename F = std::identity>
-requires std::is_arithmetic_v<T> &&
-         detail::is_iterator_v<InputIt1> &&
-         detail::is_arithmetic_result_v<F, detail::iterator_value_t<InputIt1>>
-inline auto accumulate(InputIt1 first, InputIt1 last, F&& f = F{}) noexcept -> univariate_statistics
+template<real T, std::input_iterator I, typename F = std::identity>
+requires detail::is_arithmetic_result_v<F, std::iter_value_t<I>>
+inline auto accumulate(I first, I last, F&& f = F{}) noexcept -> univariate_statistics
 {
-    using scalar_t = T;
-    using wide = eve::wide<scalar_t>;
-    size_t const n = std::distance(first, last);
-    size_t constexpr s = wide::size();
-    size_t const m = n & (-s);
+    using wide = eve::wide<T>;
+    auto constexpr s{ wide::size() };
+    auto const n{ std::distance(first, last) };
+    auto const m = n & (-s);
 
     if (n < s) {
-        univariate_accumulator<scalar_t> scalar_acc;
-        while (first < last) { scalar_acc(std::invoke(f, *first++)); }
+        univariate_accumulator<T> scalar_acc;
+        for (; first < last; ++first) {
+            scalar_acc(std::invoke(f, *first));
+        }
         return univariate_statistics(scalar_acc);
     }
 
@@ -61,7 +66,7 @@ inline auto accumulate(InputIt1 first, InputIt1 last, F&& f = F{}) noexcept -> u
     // gather the remaining values with a scalar accumulator
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<scalar_t>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
         for (; first < last; ++first) {
             scalar_acc(std::invoke(f, *first));
         }
@@ -71,25 +76,20 @@ inline auto accumulate(InputIt1 first, InputIt1 last, F&& f = F{}) noexcept -> u
 }
 
 // accumulate a sequence with weights
-template<typename T, typename InputIt1, typename InputIt2, typename F = std::identity>
-requires std::is_arithmetic_v<T> &&
-         detail::is_iterator_v<InputIt1> &&
-         detail::is_iterator_v<InputIt2> &&
-         std::is_arithmetic_v<detail::iterator_value_t<InputIt1>> &&
-         std::is_arithmetic_v<detail::iterator_value_t<InputIt2>> &&
-         std::is_invocable_v<F, detail::iterator_value_t<InputIt1>> &&
-         detail::is_arithmetic_result_v<F, detail::iterator_value_t<InputIt1>>
-inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F&& f = F{}) noexcept -> univariate_statistics
+template<real T, std::input_iterator I, std::input_iterator J, typename F = std::identity>
+requires detail::is_arithmetic_result_v<F, std::iter_value_t<I>>
+inline auto accumulate(I first1, I last1, J first2, F&& f = F{}) noexcept -> univariate_statistics
 {
-    using scalar_t = T;
-    using wide = eve::wide<scalar_t>;
-    const size_t n = std::distance(first1, last1);
-    const size_t s = wide::size();
+    using wide = eve::wide<T>;
+    auto constexpr s{ wide::size() };
+    auto const n { std::distance(first1, last1) };
     const size_t m = n & (-s);
 
     if (n < s) {
-        univariate_accumulator<scalar_t> scalar_acc;
-        while (first1 < last1) { scalar_acc(std::invoke(f, *first1++), *first2++); }
+        univariate_accumulator<T> scalar_acc;
+        for (; first1 < last1; ++first1, ++first2) {
+            scalar_acc(std::invoke(f, *first1), *first2);
+        }
         return univariate_statistics(scalar_acc);
     }
 
@@ -102,7 +102,7 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F&& f =
     // use a scalar accumulator to gather the remaining values
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<scalar_t>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(std::invoke(f, *first1), *first2);
         }
@@ -112,40 +112,36 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F&& f =
 }
 
 // accumulate a binary op between two sequences
-template<typename T, typename InputIt1, typename InputIt2, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_arithmetic_v<T> &&
-         detail::is_iterator_v<InputIt1> &&
-         detail::is_iterator_v<InputIt2> &&
-         std::is_invocable_v<F1, detail::iterator_value_t<InputIt1>> &&
-         std::is_invocable_v<F2, detail::iterator_value_t<InputIt2>> &&
+template<real T, std::input_iterator I, std::input_iterator J, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
+requires std::is_invocable_v<F1, detail::iterator_value_t<I>> and
+         std::is_invocable_v<F2, detail::iterator_value_t<J>> and
          std::is_invocable_v<
             BinaryOp,
-            std::invoke_result_t<F1, detail::iterator_value_t<InputIt1>>,
-            std::invoke_result_t<F2, detail::iterator_value_t<InputIt2>>
-         > &&
+            std::invoke_result_t<F1, detail::iterator_value_t<I>>,
+            std::invoke_result_t<F2, detail::iterator_value_t<J>>
+         > and
          detail::is_arithmetic_result_v<
             BinaryOp,
-            std::invoke_result_t<F1, detail::iterator_value_t<InputIt1>>,
-            std::invoke_result_t<F2, detail::iterator_value_t<InputIt2>>
+            std::invoke_result_t<F1, detail::iterator_value_t<I>>,
+            std::invoke_result_t<F2, detail::iterator_value_t<J>>
          >
-inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
+inline auto accumulate(I first1, I last1, J first2, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
 {
-    using scalar_t = T;
-    using wide = eve::wide<scalar_t>;
-    const size_t n = std::distance(first1, last1);
-    const size_t s = wide::size();
-    const size_t m = n & (-s);
+    using wide = eve::wide<T>;
+    auto constexpr s{ wide::size() };
+    auto const n{ std::distance(first1, last1) };
+    auto const m = n & (-s);
 
     auto f = [&](auto a, auto b){ return std::invoke(op, std::invoke(f1, a), std::invoke(f2, b)); };
     if (n < s) {
-        univariate_accumulator<scalar_t> scalar_acc;
+        univariate_accumulator<T> scalar_acc;
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(f(*first1, *first2));
         }
         return univariate_statistics(scalar_acc);
     }
 
-    std::array<scalar_t, s> x;
+    std::array<T, s> x;
     univariate_accumulator<wide> acc;
     for (size_t i = 0; i < m; i += s) {
         std::transform(first1, first1 + s, first2, x.begin(), f);
@@ -156,7 +152,7 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, BinaryO
     // use a scalar accumulator to gather the remaining values
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<scalar_t>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(f(*first1, *first2));
         }
@@ -166,35 +162,30 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, BinaryO
 }
 
 // accumulate a _weighted_ binary op between two sequences
-template<typename T, typename InputIt1, typename InputIt2, typename InputIt3, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_arithmetic_v<T> &&
-         detail::is_iterator_v<InputIt1> &&
-         detail::is_iterator_v<InputIt2> &&
-         detail::is_iterator_v<InputIt3> &&
-         std::is_arithmetic_v<detail::iterator_value_t<InputIt3>> &&
-         std::is_invocable_v<F1, detail::iterator_value_t<InputIt1>> &&
-         std::is_invocable_v<F2, detail::iterator_value_t<InputIt2>> &&
+template<real T, std::input_iterator I, std::input_iterator J, std::input_iterator K, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
+requires std::is_arithmetic_v<detail::iterator_value_t<K>> &&
+         std::is_invocable_v<F1, detail::iterator_value_t<I>> &&
+         std::is_invocable_v<F2, detail::iterator_value_t<J>> &&
          std::is_invocable_v<
             BinaryOp,
-            std::invoke_result_t<F1, detail::iterator_value_t<InputIt1>>,
-            std::invoke_result_t<F2, detail::iterator_value_t<InputIt2>>
+            std::invoke_result_t<F1, detail::iterator_value_t<I>>,
+            std::invoke_result_t<F2, detail::iterator_value_t<J>>
          > &&
          detail::is_arithmetic_result_v<
             BinaryOp,
-            std::invoke_result_t<F1, detail::iterator_value_t<InputIt1>>,
-            std::invoke_result_t<F2, detail::iterator_value_t<InputIt2>>
+            std::invoke_result_t<F1, detail::iterator_value_t<I>>,
+            std::invoke_result_t<F2, detail::iterator_value_t<J>>
          >
-inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt3 first3, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
+inline auto accumulate(I first1, I last1, J first2, K first3, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
 {
-    using scalar_t = T;
-    using wide = eve::wide<scalar_t>;
-    const size_t n = std::distance(first1, last1);
-    const size_t s = wide::size();
-    const size_t m = n & (-s);
+    using wide = eve::wide<T>;
+    auto constexpr s{ wide::size() };
+    auto const n{ std::distance(first1, last1) };
+    auto const m = n & (-s);
 
     auto f = [&](auto a, auto b){ return std::invoke(op, std::invoke(f1, a), std::invoke(f2, b)); };
     if (n < s) {
-        univariate_accumulator<scalar_t> scalar_acc;
+        univariate_accumulator<T> scalar_acc;
         for (; first1 < last1; ++first1, ++first2, ++first3) {
             scalar_acc(f(*first1, *first2), *first3);
         }
@@ -202,7 +193,7 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt
     }
 
 
-    std::array<scalar_t, s> x;
+    std::array<T, s> x;
     univariate_accumulator<wide> acc;
     for (size_t i = 0; i < m; i += s) {
         std::transform(first1, first1 + s, first2, x.begin(), f);
@@ -213,7 +204,7 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt
     // use a scalar accumulator to gather the remaining values
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<scalar_t>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2, ++first3) {
             scalar_acc(f(*first1, *first2), *first3);
         }
@@ -222,77 +213,62 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt
     return univariate_statistics(acc);
 }
 
-// raw pointer variants
-template<typename T, typename X, typename F = std::identity>
-requires std::is_arithmetic_v<T> && std::is_invocable_r_v<T, F, X>
-inline auto accumulate(X const* x, size_t n, F&& f = F{}) noexcept -> univariate_statistics
+// range variants
+template<real T, std::ranges::input_range R, typename F = std::identity>
+requires std::is_invocable_v<F, std::ranges::range_value_t<R>>
+inline auto accumulate(R&& r, F&& f = F{}) noexcept -> univariate_statistics
 {
-    return univariate::accumulate<T>(x, x + n, f);
+    return univariate::accumulate<T>(std::cbegin(r), std::cend(r), f);
 }
 
-template<typename T, typename X, typename W, typename F = std::identity>
-requires std::is_arithmetic_v<T> && std::is_arithmetic_v<W> &&
-         std::is_invocable_r_v<T, F, X>
-inline auto accumulate(X const* x, W const* w, size_t n, F&& f = F{}) noexcept -> univariate_statistics
+template<real T, std::ranges::input_range R, std::ranges::input_range W, typename F = std::identity>
+requires std::is_invocable_v<F, std::ranges::range_value_t<R>>
+inline auto accumulate(R&& r, W&& w, F&& f = F{})
 {
-    return univariate::accumulate<T>(x, x + n, w, f);
+    return univariate::accumulate<T>(std::cbegin(r), std::cend(r), std::cbegin(w), f);
 }
 
-template<typename T, typename X, typename Y, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_arithmetic_v<T> &&
-         std::is_invocable_v<
-             BinaryOp,
-             std::invoke_result_t<F1, X>,
-             std::invoke_result_t<F2, Y>
-         > &&
-         detail::is_arithmetic_result_v<
-             BinaryOp,
-             std::invoke_result_t<F1, X>,
-             std::invoke_result_t<F2, Y>
-         >
-inline auto accumulate(X const* x, Y const* y, size_t n, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) -> univariate_statistics
+template<real T, std::ranges::input_range X, std::ranges::input_range Y, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
+requires std::is_invocable_v<BinaryOp,
+                             std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
+                             std::invoke_result_t<F2, std::ranges::range_value_t<Y>>> and
+         detail::is_arithmetic_result_v<BinaryOp,
+                             std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
+                             std::invoke_result_t<F2, std::ranges::range_value_t<Y>>>
+inline auto accumulate(X&& x, Y&& y, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{})
 {
-    return univariate::accumulate<T>(x, x + n, y, op, f1, f2);
+    return univariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), op, f1, f2);
 }
 
-template<typename T, typename X, typename Y, typename W, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_arithmetic_v<T> && std::is_arithmetic_v<W> &&
-         std::is_invocable_v<
-             BinaryOp,
-             std::invoke_result_t<F1, X>,
-             std::invoke_result_t<F2, Y>
-         > &&
-         detail::is_arithmetic_result_v<
-             BinaryOp,
-             std::invoke_result_t<F1, X>,
-             std::invoke_result_t<F2, Y>
-         >
-inline auto accumulate(X const* x, Y const* y, W const* w, size_t n, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) -> univariate_statistics
+template<real T, std::ranges::input_range X, std::ranges::input_range Y, std::ranges::input_range W, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
+requires std::is_invocable_v<BinaryOp,
+                             std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
+                             std::invoke_result_t<F2, std::ranges::range_value_t<Y>>> and
+         detail::is_arithmetic_result_v<BinaryOp,
+                             std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
+                             std::invoke_result_t<F2, std::ranges::range_value_t<Y>>>
+inline auto accumulate(X&& x, Y&& y, W&& w, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{})
 {
-    return univariate::accumulate<T>(x, x + n, y, w, op, f1, f2);
+    return univariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), std::cbegin(w), op, f1, f2);
 }
 } // namespace univariate
 
 namespace bivariate {
 // bivariate case
-template<typename T, typename InputIt1, typename InputIt2, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_arithmetic_v<T> && 
-         detail::is_iterator_v<InputIt1> &&
-         detail::is_iterator_v<InputIt2> &&
-         std::is_invocable_v<F1, detail::iterator_value_t<InputIt1>> &&
-         std::is_invocable_v<F2, detail::iterator_value_t<InputIt2>> &&
-         detail::is_arithmetic_result_v<F1, detail::iterator_value_t<InputIt1>> &&
-         detail::is_arithmetic_result_v<F2, detail::iterator_value_t<InputIt2>>
-inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
+
+// iterator variants
+template<real T, std::input_iterator I, std::input_iterator J, typename F1 = std::identity, typename F2 = std::identity>
+requires detail::is_arithmetic_result_v<F1, std::iter_value_t<I>> and
+         detail::is_arithmetic_result_v<F2, std::iter_value_t<J>>
+inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1{}, F2&& f2 = F2{})
 {
-    using scalar_t = T;
-    using wide = eve::wide<scalar_t>;
-    const size_t n = std::distance(first1, last1);
-    const size_t s = wide::size();
-    const size_t m = n & (-s);
+    using wide = eve::wide<T>;
+    auto constexpr s { wide::size() };
+    auto const n { std::distance(first1, last1) };
+    auto const m = n & (-s);
 
     if (n < s) {
-        bivariate_accumulator<scalar_t> scalar_acc;
+        bivariate_accumulator<T> scalar_acc;
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(std::invoke(f1, *first1), std::invoke(f2, *first2));
         }
@@ -307,7 +283,7 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F1&& f1
 
     if (m < n) {
         auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
-        auto scalar_acc = bivariate_accumulator<scalar_t>::load_state(sx, sy, sw, sxx, syy, sxy);
+        auto scalar_acc = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(std::invoke(f1, *first1), std::invoke(f2, *first2));
         }
@@ -317,22 +293,16 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, F1&& f1
     return bivariate_statistics(acc);
 }
 
-template<typename T, typename InputIt1, typename InputIt2, typename InputIt3, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_arithmetic_v<T> &&
-         detail::is_iterator_v<InputIt1> &&
-         detail::is_iterator_v<InputIt2> &&
-         detail::is_iterator_v<InputIt3> &&
-         std::is_invocable_v<F1, detail::iterator_value_t<InputIt1>> &&
-         std::is_invocable_v<F2, detail::iterator_value_t<InputIt2>> &&
-         detail::is_arithmetic_result_v<F1, detail::iterator_value_t<InputIt1>> &&
-         detail::is_arithmetic_result_v<F2, detail::iterator_value_t<InputIt2>> &&
-         std::is_arithmetic_v<detail::iterator_value_t<InputIt3>>
-inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt3 first3, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
+template<real T, std::input_iterator I, std::input_iterator J, std::input_iterator K, typename F1 = std::identity, typename F2 = std::identity>
+requires detail::is_arithmetic_result_v<F1, std::iter_value_t<I>> and
+         detail::is_arithmetic_result_v<F2, std::iter_value_t<J>> and
+         std::is_arithmetic_v<std::iter_value_t<K>>
+inline auto accumulate(I first1, I last1, J first2, K first3, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
     using wide = eve::wide<T>;
-    const size_t n = std::distance(first1, last1);
-    const size_t s = wide::size();
-    const size_t m = n & (-s);
+    auto constexpr s { wide::size() };
+    auto const n = std::distance(first1, last1);
+    auto const m = n & (-s);
 
     if (n < s) {
         bivariate_accumulator<T> scalar_acc;
@@ -363,27 +333,22 @@ inline auto accumulate(InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt
     return bivariate_statistics(acc);
 }
 
-template<typename T, typename X, typename Y, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_arithmetic_v<T> &&
-         std::is_invocable_v<F1, X> &&
-         std::is_invocable_v<F2, Y> &&
-         detail::is_arithmetic_result_v<F1, X> &&
-         detail::is_arithmetic_result_v<F2, Y>
-inline auto accumulate(X const* x, Y const* y, size_t n, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
+// range variants
+template<real T, std::ranges::input_range X, std::ranges::input_range Y, typename F1 = std::identity, typename F2 = std::identity>
+requires detail::is_arithmetic_result_v<F1, std::ranges::range_value_t<X>> and
+         detail::is_arithmetic_result_v<F2, std::ranges::range_value_t<Y>>
+inline auto accumulate(X&& x, Y&& y, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
-    return bivariate::accumulate<T>(x, x + n, y, f1, f2);
+    return bivariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), f1, f2);
 }
 
-template<typename T, typename X, typename Y, typename W, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_arithmetic_v<T> &&
-         std::is_invocable_v<F1, X> &&
-         std::is_invocable_v<F2, Y> &&
-         std::is_arithmetic_v<W> &&
-         detail::is_arithmetic_result_v<F1, X> &&
-         detail::is_arithmetic_result_v<F2, Y>
-inline auto accumulate(X const* x, Y const* y, W const* w, size_t n, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
+template<real T, std::ranges::input_range X, std::ranges::input_range Y, std::ranges::input_range W, typename F1 = std::identity, typename F2 = std::identity>
+requires detail::is_arithmetic_result_v<F1, std::ranges::range_value_t<X>> and
+         detail::is_arithmetic_result_v<F2, std::ranges::range_value_t<Y>> and
+         std::is_arithmetic_v<std::ranges::range_value_t<W>>
+inline auto accumulate(X&& x, Y&& y, W&& w, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
-    return bivariate::accumulate<T>(x, x + n, y, w, f1, f2);
+    return bivariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), std::cbegin(w), f1, f2);
 }
 } // namespace bivariate
 
