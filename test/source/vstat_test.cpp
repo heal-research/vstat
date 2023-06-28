@@ -66,7 +66,7 @@ TEST_SUITE("usage")
             };
 
             Foo foos[] = { { 1 }, { 3 }, { 5 }, { 2 }, { 8 } };
-            auto stats = vstat::univariate::accumulate<float>(foos, [](auto const& foo) { return foo.value; });
+            auto stats = vstat::univariate::accumulate<float>(std::cbegin(foos), std::cend(foos), [](auto const& foo) { return foo.value; });
             std::cout << "stats:\n"
                       << stats << "\n";
         }
@@ -109,7 +109,7 @@ TEST_SUITE("usage")
 
         SUBCASE("batch")
         {
-            auto stats = vstat::bivariate::accumulate<float>(x, y);
+            auto stats = vstat::bivariate::accumulate<float>(std::cbegin(x), std::cend(x), std::cbegin(y));
             std::cout << "stats:\n"
                       << stats << "\n";
         }
@@ -128,7 +128,7 @@ TEST_SUITE("usage")
             Bar bars[] = { { 3 }, { 2 }, { 1 }, { 4 }, { 11 } };
 
             auto stats = vstat::bivariate::accumulate<float>(
-                foos, bars, [](auto const& foo) { return foo.value; }, [](auto const& bar) { return bar.value; });
+                std::cbegin(foos), std::cend(foos), std::cbegin(bars), [](auto const& foo) { return foo.value; }, [](auto const& bar) { return bar.value; });
             std::cout << "stats:\n"
                       << stats << "\n";
         }
@@ -228,7 +228,7 @@ TEST_SUITE("correctness")
             float y[] { 2, 4, 5 };
             float w[] { 2, 1, 3 };
 
-            auto stats1 = vstat::univariate::accumulate<float>(x);
+            auto stats1 = vstat::univariate::accumulate<float>(std::cbegin(x), std::cend(x));
             auto stats2 = vstat::univariate::accumulate<float>(std::cbegin(y), std::cend(y), std::cbegin(w));
             CHECK(stats1.mean == stats2.mean);
             CHECK(std::abs(stats1.variance - stats2.variance) < 1e-5);

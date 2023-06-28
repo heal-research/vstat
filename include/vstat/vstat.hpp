@@ -11,7 +11,6 @@
 #include <concepts>
 #include <functional>
 #include <iterator>
-#include <ranges>
 
 namespace VSTAT_NAMESPACE {
 
@@ -207,45 +206,6 @@ inline auto accumulate(I first1, I last1, J first2, K first3, BinaryOp&& op = Bi
     }
     return univariate_statistics(acc);
 }
-
-// range variants
-template<std::floating_point T, std::ranges::input_range R, typename F = std::identity>
-requires std::is_invocable_v<F, std::ranges::range_value_t<R>>
-inline auto accumulate(R&& r, F&& f = F{}) noexcept -> univariate_statistics
-{
-    return univariate::accumulate<T>(std::cbegin(r), std::cend(r), f);
-}
-
-template<std::floating_point T, std::ranges::input_range R, std::ranges::input_range W, typename F = std::identity>
-requires std::is_invocable_v<F, std::ranges::range_value_t<R>>
-inline auto accumulate(R&& r, W&& w, F&& f = F{})
-{
-    return univariate::accumulate<T>(std::cbegin(r), std::cend(r), std::cbegin(w), f);
-}
-
-template<std::floating_point T, std::ranges::input_range X, std::ranges::input_range Y, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_invocable_v<BinaryOp,
-                             std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
-                             std::invoke_result_t<F2, std::ranges::range_value_t<Y>>> and
-         detail::is_arithmetic_result_v<BinaryOp,
-                             std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
-                             std::invoke_result_t<F2, std::ranges::range_value_t<Y>>>
-inline auto accumulate(X&& x, Y&& y, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{})
-{
-    return univariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), op, f1, f2);
-}
-
-template<std::floating_point T, std::ranges::input_range X, std::ranges::input_range Y, std::ranges::input_range W, typename BinaryOp, typename F1 = std::identity, typename F2 = std::identity>
-requires std::is_invocable_v<BinaryOp,
-                             std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
-                             std::invoke_result_t<F2, std::ranges::range_value_t<Y>>> and
-         detail::is_arithmetic_result_v<BinaryOp,
-                             std::invoke_result_t<F1, std::ranges::range_value_t<X>>,
-                             std::invoke_result_t<F2, std::ranges::range_value_t<Y>>>
-inline auto accumulate(X&& x, Y&& y, W&& w, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{})
-{
-    return univariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), std::cbegin(w), op, f1, f2);
-}
 } // namespace univariate
 
 namespace bivariate {
@@ -326,24 +286,6 @@ inline auto accumulate(I first1, I last1, J first2, K first3, F1&& f1 = F1{}, F2
         return bivariate_statistics(scalar_acc);
     }
     return bivariate_statistics(acc);
-}
-
-// range variants
-template<std::floating_point T, std::ranges::input_range X, std::ranges::input_range Y, typename F1 = std::identity, typename F2 = std::identity>
-requires detail::is_arithmetic_result_v<F1, std::ranges::range_value_t<X>> and
-         detail::is_arithmetic_result_v<F2, std::ranges::range_value_t<Y>>
-inline auto accumulate(X&& x, Y&& y, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
-{
-    return bivariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), f1, f2);
-}
-
-template<std::floating_point T, std::ranges::input_range X, std::ranges::input_range Y, std::ranges::input_range W, typename F1 = std::identity, typename F2 = std::identity>
-requires detail::is_arithmetic_result_v<F1, std::ranges::range_value_t<X>> and
-         detail::is_arithmetic_result_v<F2, std::ranges::range_value_t<Y>> and
-         std::is_arithmetic_v<std::ranges::range_value_t<W>>
-inline auto accumulate(X&& x, Y&& y, W&& w, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
-{
-    return bivariate::accumulate<T>(std::cbegin(x), std::cend(x), std::cbegin(y), std::cbegin(w), f1, f2);
 }
 } // namespace bivariate
 } // namespace VSTAT_NAMESPACE
