@@ -36,7 +36,7 @@ namespace univariate {
 // we want to have a type T (e.g. float, double) that specifies the precision of the accumulator
 template<std::floating_point T, std::input_iterator I, typename F = std::identity>
 requires detail::is_arithmetic_result_v<F, std::iter_value_t<I>>
-inline auto accumulate(I first, I last, F&& f = F{}) noexcept -> univariate_statistics
+inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F{}) noexcept -> univariate_statistics
 {
     using wide = eve::wide<T>;
     auto constexpr s{ wide::size() };
@@ -72,7 +72,7 @@ inline auto accumulate(I first, I last, F&& f = F{}) noexcept -> univariate_stat
 // accumulate a sequence with weights
 template<std::floating_point T, std::input_iterator I, std::input_iterator J, typename F = std::identity>
 requires detail::is_arithmetic_result_v<F, std::iter_value_t<I>>
-inline auto accumulate(I first1, I last1, J first2, F&& f = F{}) noexcept -> univariate_statistics
+inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, F&& f = F{}) noexcept -> univariate_statistics
 {
     using wide = eve::wide<T>;
     auto constexpr s{ wide::size() };
@@ -119,7 +119,7 @@ requires std::is_invocable_v<F1, detail::iterator_value_t<I>> and
             std::invoke_result_t<F1, detail::iterator_value_t<I>>,
             std::invoke_result_t<F2, detail::iterator_value_t<J>>
          >
-inline auto accumulate(I first1, I last1, J first2, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
+inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
 {
     using wide = eve::wide<T>;
     auto constexpr s{ wide::size() };
@@ -170,7 +170,7 @@ requires std::is_arithmetic_v<detail::iterator_value_t<K>> &&
             std::invoke_result_t<F1, detail::iterator_value_t<I>>,
             std::invoke_result_t<F2, detail::iterator_value_t<J>>
          >
-inline auto accumulate(I first1, I last1, J first2, K first3, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
+inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, K first3, BinaryOp&& op = BinaryOp{}, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> univariate_statistics
 {
     using wide = eve::wide<T>;
     auto constexpr s{ wide::size() };
@@ -215,7 +215,7 @@ namespace bivariate {
 template<std::floating_point T, std::input_iterator I, std::input_iterator J, typename F1 = std::identity, typename F2 = std::identity>
 requires detail::is_arithmetic_result_v<F1, std::iter_value_t<I>> and
          detail::is_arithmetic_result_v<F2, std::iter_value_t<J>>
-inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1{}, F2&& f2 = F2{})
+inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, F1&& f1 = F1{}, F2&& f2 = F2{})
 {
     using wide = eve::wide<T>;
     auto constexpr s { wide::size() };
@@ -252,7 +252,7 @@ template<std::floating_point T, std::input_iterator I, std::input_iterator J, st
 requires detail::is_arithmetic_result_v<F1, std::iter_value_t<I>> and
          detail::is_arithmetic_result_v<F2, std::iter_value_t<J>> and
          std::is_arithmetic_v<std::iter_value_t<K>>
-inline auto accumulate(I first1, I last1, J first2, K first3, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
+inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, K first3, F1&& f1 = F1{}, F2&& f2 = F2{}) noexcept -> bivariate_statistics
 {
     using wide = eve::wide<T>;
     auto constexpr s { wide::size() };
