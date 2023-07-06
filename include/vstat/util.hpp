@@ -30,48 +30,4 @@
 #define VSTAT_NAMESPACE vstat
 #endif
 
-namespace VSTAT_NAMESPACE::detail {
-    // type traits
-    template<typename T, typename... Ts>
-    struct is_any : std::disjunction<std::is_same<T, Ts>...> {
-    };
-
-    template<typename T, typename... Ts>
-    using is_any_t = typename is_any<T, Ts...>::type;
-
-    template<typename T, typename... Ts>
-    inline constexpr bool is_any_v = is_any<T, Ts...>::value;
-
-    template<typename T, typename... Ts>
-    struct are_same : std::conjunction<std::is_same<T, Ts>...> {
-    };
-
-    template<typename T, typename... Ts>
-    using are_same_t = typename are_same<T, Ts...>::type;
-
-    template<typename T, typename... Ts>
-    inline constexpr bool are_same_v = are_same<T, Ts...>::value;
-
-    template<typename T, typename = void>
-    struct is_iterator : std::false_type {
-    };
-
-    template<typename T>
-    struct is_iterator<T, std::void_t<typename std::iterator_traits<T>::iterator_category>> : std::true_type {
-    };
-
-    template<typename T>
-    using is_iterator_t = typename is_iterator<T>::type;
-
-    template<typename T>
-    inline constexpr bool is_iterator_v = is_iterator<T>::value;
-
-    template<typename T>
-    requires detail::is_iterator_v<T>
-    using iterator_value_t = typename std::iterator_traits<T>::value_type;
-
-    template<typename F, typename... Args>
-    requires std::is_invocable_v<F, Args...>
-    inline constexpr bool is_arithmetic_result_v = std::is_arithmetic_v<std::remove_reference_t<std::invoke_result_t<F, Args...>>>;
-} // namespace VSTAT_NAMESPACE::detail
 #endif
