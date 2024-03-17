@@ -16,13 +16,6 @@
 namespace VSTAT_NAMESPACE {
 
 namespace detail {
-    // utility
-    template<typename T>
-    auto square(T a)
-    {
-        return a * a;
-    }
-
     template<typename T>
     requires eve::simd_value<T>
     auto unpack(T v) -> auto
@@ -45,7 +38,7 @@ inline auto combine(T sum_w, T sum_x, T sum_xx) -> double
         auto [n0, n1] = detail::unpack(sum_w);
         auto [s0, s1] = detail::unpack(sum_x);
         double f = 1. / (n0 * n1 * (n0 + n1));
-        return eve::reduce(sum_xx) + f * detail::square(n1 * s0 - n0 * s1); // eq. 22
+        return eve::reduce(sum_xx) + f * eve::sqr(n1 * s0 - n0 * s1); // eq. 22
     } else {
         auto [sum_w0, sum_w1] = sum_w.slice(); 
         auto [sum_x0, sum_x1] = sum_x.slice();
@@ -61,7 +54,7 @@ inline auto combine(T sum_w, T sum_x, T sum_xx) -> double
         double q1 = combine(sum_w1, sum_x1, sum_xx1);
 
         double f   = 1. / (n0 * n1 * (n0 + n1));
-        return q0 + q1 + f * detail::square(n1 * s0 - n0 * s1); // eq. 22
+        return q0 + q1 + f * eve::sqr(n1 * s0 - n0 * s1); // eq. 22
     }
 }
 
