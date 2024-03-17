@@ -40,4 +40,5 @@ else()
     target_compile_options(vstat_test PUBLIC "$<$<CONFIG:Release>:-fno-math-errno>")
 endif()
 
-add_test(NAME vstat_test COMMAND vstat_test)
+include(doctest)
+doctest_discover_tests(vstat_test)
