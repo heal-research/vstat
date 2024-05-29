@@ -1,0 +1,55 @@
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+DOXYFILE_ENCODING      = UTF-8
+
+PROJECT_NAME           = vstat
+PROJECT_NUMBER         =
+PROJECT_BRIEF          =
+PROJECT_LOGO           = ../logo/vstat.svg
+
+GENERATE_HTML          = YES
+USE_MATHJAX            = YES
+MATHJAX_FORMAT         = HTML-CSS
+GENERATE_TREEVIEW      = YES # optional. Also works without treeview
+DISABLE_INDEX = NO
+FULL_SIDEBAR = NO
+HTML_EXTRA_FILES       = doxygen-awesome-darkmode-toggle.js
+HTML_EXTRA_STYLESHEET  = doxygen-awesome.css \
+                         doxygen-awesome-sidebar-only.css \
+                         doxygen-awesome-sidebar-only-darkmode-toggle.css
+HTML_COLORSTYLE        = LIGHT # required with Doxygen >= 1.9.5
+HTML_HEADER = header.html
+HTML_FOOTER =
+USE_MDFILE_AS_MAINPAGE = ../README.md
+LAYOUT_FILE            = layout.xml
+
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = NO
+GENERATE_DOCBOOK       = NO
+GENERATE_AUTOGEN_DEF   = NO
+GENERATE_PERLMOD       = NO
+
+EXTENSION_MAPPING      =
+MARKDOWN_SUPPORT       = YES
+TOC_INCLUDE_HEADINGS   = 5
+AUTOLINK_SUPPORT       = YES
+LOOKUP_CACHE_SIZE      = 0
+
+
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+INPUT                  = ../include/vstat ../README.md index.md .
+INPUT_ENCODING         = UTF-8
+INCLUDE_PATH           =
+FILE_PATTERNS          = *.hpp \
+                         *.cpp
+RECURSIVE              = YES
+EXTRACT_ALL            = NO
+HIDE_UNDOC_CLASSES     = YES
+HIDE_UNDOC_MEMBERS     = YES
+BRIEF_MEMBER_DESC      = NO
+SHOW_NAMESPACES        = NO
+HIDE_SCOPE_NAMES       = YES

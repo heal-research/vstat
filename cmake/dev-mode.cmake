@@ -3,8 +3,8 @@ if(BUILD_TESTING)
   add_subdirectory(test)
 endif()
 
-option(BUILD_MCSS_DOCS "Build documentation using Doxygen and m.css" OFF)
-if(BUILD_MCSS_DOCS)
+option(VSTAT_BUILD_DOCS "Build documentation using Doxygen" OFF)
+if(VSTAT_BUILD_DOCS)
   include(cmake/docs.cmake)
 endif()
 
