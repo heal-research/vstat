@@ -153,6 +153,46 @@ namespace stat_other {
             for (auto i = 0; i < std::ssize(x); ++i) { acc(x[i], ba::weight=w[i], ba::covariate1=y[i]); }
             return ba::weighted_covariance(acc);
         }
+
+        template<typename T>
+        inline auto r2_score(vec<T> const& x, vec<T> const& y) {
+            auto m = mean(y);
+
+            ba::accumulator_set<T, ba::stats<ba::tag::sum>> acc1;
+            ba::accumulator_set<T, ba::stats<ba::tag::sum>> acc2;
+            for (auto i = 0; i < x.size(); ++i) {
+                auto e = x[i] - y[i];
+                auto t = y[i] - m;
+                acc1(e*e);
+                acc2(t*t);
+            }
+            auto const rss = ba::sum(acc1);
+            auto const tss = ba::sum(acc2);
+
+            return tss < std::numeric_limits<double>::epsilon()
+                ? std::numeric_limits<double>::lowest()
+                : 1.0 - rss / tss;
+        }
+
+        template<typename T>
+        inline auto r2_score(vec<T> const& x, vec<T> const& y, vec<T> const z) {
+            ba::accumulator_set<T, ba::stats<ba::tag::weighted_sum>, T> acc1;
+            ba::accumulator_set<T, ba::stats<ba::tag::weighted_variance>, T> acc2;
+            ba::accumulator_set<T, ba::stats<ba::tag::sum>> acc3;
+            for (auto i = 0; i < x.size(); ++i) {
+                auto e = x[i] - y[i];
+                acc1(e*e, ba::weight=z[i]);
+                acc2(y[i], ba::weight=z[i]);
+                acc3(z[i]);
+            }
+            auto const sum = ba::sum(acc3);
+            auto const rss = ba::weighted_sum(acc1);
+            auto const tss = ba::weighted_variance(acc2) * sum;
+
+            return tss < std::numeric_limits<double>::epsilon()
+                ? std::numeric_limits<double>::lowest()
+                : 1.0 - rss / tss;
+        }
     } // namespace boost
 
     namespace linasm {
@@ -163,7 +203,7 @@ namespace stat_other {
 
         template<typename T>
         inline auto mean(vec<T> const& x, vec<T> const& w) {
-            throw std::runtime_error("not supported"); 
+            throw std::runtime_error("not supported");
         }
 
         template<typename T>
@@ -183,7 +223,7 @@ namespace stat_other {
 
         template<typename T>
         inline auto variance(vec<T> const& x, vec<T> const& w) {
-            throw std::runtime_error("not supported"); 
+            throw std::runtime_error("not supported");
         }
 
         template<typename T>

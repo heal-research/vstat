@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: Copyright 2019-2021 Heal Research
+// SPDX-FileCopyrightText: Copyright 2019-2024 Heal Research
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
@@ -10,6 +10,8 @@
 #include <iostream>
 #include <random>
 #include <vector>
+
+#include <eve/module/algo.hpp>
 
 #include "vstat/vstat.hpp"
 #include "stat_other.hpp"
@@ -37,14 +39,95 @@ namespace util {
     auto constexpr count_medium{1'000};  // medium
     auto constexpr count_large{100'000}; // large
 
+
+
+    TEST_CASE("gamma") {
+        eve::wide<float> x{10};
+        eve::wide<float> g = eve::log_abs_gamma(x);
+        std::cout << "x = " << x << "\n";
+        std::cout << "g = " << g << "\n";
+    }
+
+    TEST_CASE("univariate" * dt::test_suite("[correctness]")) {
+        float x[] = { 1.F, 1.F, 2.F, 6.F };
+        float y[] = { 2.F, 4.F, 3.F, 1.F };
+        size_t n = std::size(x);
+
+        auto stats = vstat::bivariate::accumulate<double>(x, x+n, std::begin(y));
+        std::cout << "stats:\n" << stats << "\n";
+    }
+
+    TEST_CASE("r2" * dt::test_suite("[correctness]")) {
+        std::default_random_engine rng{1234};
+
+        auto test_r2 = [&]<typename T = double>(int n, T eps) {
+            auto x = util::generate<T>(rng, n);
+            auto y = util::generate<T>(rng, n);
+
+            auto m1 = stat_other::boost::r2_score(x, y);
+            auto m2 = vstat::metrics::r2_score<T>(x.begin(), x.end(), y.begin());
+
+            CAPTURE(n);
+            CAPTURE(m1);
+            CAPTURE(m2);
+            REQUIRE(equal<T>(m1, m2, eps));
+        };
+
+        SUBCASE("double") {
+            double const eps{1e-6};
+            SUBCASE("small") { test_r2(count_small, eps); } // NOLINT
+            SUBCASE("medium") { test_r2(count_medium, eps); } // NOLINT
+            SUBCASE("large") { test_r2(count_large, eps); } // NOLINT
+        }
+
+        SUBCASE("float") {
+            float const eps{1e-5};
+            SUBCASE("small") { test_r2.operator()<float>(count_small, eps); } // NOLINT
+            SUBCASE("medium") { test_r2.operator()<float>(count_medium, eps); } // NOLINT
+            SUBCASE("large") { test_r2.operator()<float>(count_large, eps); } // NOLINT
+        }
+    }
+
+    TEST_CASE("weighted r2" * dt::test_suite("[correctness]")) {
+        std::default_random_engine rng{1234};
+
+        auto test_r2_weighted = [&]<typename T = double>(int n, T eps) {
+            auto x = util::generate<T>(rng, n);
+            auto y = util::generate<T>(rng, n);
+            auto z = util::generate<T>(rng, n);
+
+            auto m1 = stat_other::boost::r2_score(x, y, z);
+            auto m2 = vstat::metrics::r2_score<T>(x.begin(), x.end(), y.begin(), z.begin());
+
+            CAPTURE(n);
+            CAPTURE(m1);
+            CAPTURE(m2);
+            REQUIRE(equal<T>(m1, m2, eps));
+        };
+
+        SUBCASE("double") {
+            double const eps{1e-1};
+            SUBCASE("small") { test_r2_weighted(count_small, eps); } // NOLINT
+            SUBCASE("medium") { test_r2_weighted(count_medium, eps); } // NOLINT
+            SUBCASE("large") { test_r2_weighted(count_large, eps); } // NOLINT
+        }
+
+        SUBCASE("float") {
+            float const eps{1e-1};
+            SUBCASE("small") { test_r2_weighted.operator()<float>(count_small, eps); } // NOLINT
+            SUBCASE("medium") { test_r2_weighted.operator()<float>(count_medium, eps); } // NOLINT
+            SUBCASE("large") { test_r2_weighted.operator()<float>(count_large, eps); } // NOLINT
+        }
+    }
+
     TEST_CASE("mean" * dt::test_suite("[correctness]")) {
         std::random_device rng{};
 
         auto test_mean = [&]<typename T = double>(int n, T eps) {
             auto x = util::generate<T>(rng, n);
 
-            auto m1 = stat_other::boost::mean(x); 
-            auto m2 = uv::accumulate<T>(x.begin(), x.end()).mean; 
+            auto m1 = stat_other::boost::mean(x);
+            auto m2 = uv::accumulate<T>(x.begin(), x.end()).mean;
 
             CAPTURE(m1);
             CAPTURE(m2);
@@ -73,8 +156,8 @@ namespace util {
             auto x = util::generate<T>(rng, n);
             auto w = util::generate<T>(rng, n);
 
-            auto m1 = stat_other::boost::mean(x, w); 
-            auto m2 = uv::accumulate<T>(x.begin(), x.end(), w.begin()).mean; 
+            auto m1 = stat_other::boost::mean(x, w);
+            auto m2 = uv::accumulate<T>(x.begin(), x.end(), w.begin()).mean;
 
             CAPTURE(m1);
             CAPTURE(m2);
@@ -103,14 +186,14 @@ namespace util {
             auto x = util::generate<T>(rng, n);
             auto y = util::generate<T>(rng, n);
 
-            auto m1 = stat_other::boost::variance(x, y); 
-            auto m2 = uv::accumulate<T>(x.begin(), x.end(), y.begin()).variance; 
+            auto m1 = stat_other::boost::variance(x, y);
+            auto m2 = uv::accumulate<T>(x.begin(), x.end(), y.begin()).variance;
 
             CAPTURE(m1);
             CAPTURE(m2);
             REQUIRE(equal<T>(m1, m2, eps));
         };
-    
+
         SUBCASE("double") {
             double const eps{1e-6};
             SUBCASE("small") { test_variance(count_small, eps); } // NOLINT
@@ -133,14 +216,14 @@ namespace util {
             auto x = util::generate<T>(rng, n);
             auto w = util::generate<T>(rng, n);
 
-            auto m1 = stat_other::boost::variance(x, w); 
-            auto m2 = uv::accumulate<T>(x.begin(), x.end(), w.begin()).variance; 
+            auto m1 = stat_other::boost::variance(x, w);
+            auto m2 = uv::accumulate<T>(x.begin(), x.end(), w.begin()).variance;
 
             CAPTURE(m1);
             CAPTURE(m2);
             REQUIRE(equal<T>(m1, m2, eps));
         };
-    
+
         SUBCASE("double") {
             double const eps{1e-6};
             SUBCASE("small") { test_variance(count_small, eps); } // NOLINT
@@ -163,14 +246,14 @@ namespace util {
             auto x = util::generate<T>(rng, n);
             auto y = util::generate<T>(rng, n);
 
-            auto m1 = stat_other::boost::covariance(x, y); 
-            auto m2 = bv::accumulate<T>(x.begin(), x.end(), y.begin()).covariance; 
+            auto m1 = stat_other::boost::covariance(x, y);
+            auto m2 = bv::accumulate<T>(x.begin(), x.end(), y.begin()).covariance;
 
             CAPTURE(m1);
             CAPTURE(m2);
             REQUIRE(equal<T>(m1, m2, eps));
         };
-    
+
         SUBCASE("double") {
             double const eps{1e-6};
             SUBCASE("small") { test_covariance(count_small, eps); } // NOLINT
@@ -194,14 +277,14 @@ namespace util {
             auto y = util::generate<T>(rng, n);
             auto w = util::generate<T>(rng, n);
 
-            auto m1 = stat_other::boost::covariance(x, y, w); 
-            auto m2 = bv::accumulate<T>(x.begin(), x.end(), y.begin(), w.begin()).covariance; 
+            auto m1 = stat_other::boost::covariance(x, y, w);
+            auto m2 = bv::accumulate<T>(x.begin(), x.end(), y.begin(), w.begin()).covariance;
 
             CAPTURE(m1);
             CAPTURE(m2);
             REQUIRE(equal<T>(m1, m2, eps));
         };
-    
+
         SUBCASE("double") {
             double const eps{1e-6};
             SUBCASE("small") { test_covariance(count_small, eps); } // NOLINT
@@ -259,63 +342,63 @@ namespace util {
             });
 
             bench.batch(s).run("boost.accu;mean;double", [&]() {
-                m += stat_other::boost::mean(xd); 
+                m += stat_other::boost::mean(xd);
             });
 
             bench.batch(s).run("boost.accu;weighted mean;double", [&]() {
-                m += stat_other::boost::mean(xd, wd); 
+                m += stat_other::boost::mean(xd, wd);
             });
 
             bench.batch(s).run("boost.accu;variance;double", [&]() {
-                m += stat_other::boost::variance(xd); 
+                m += stat_other::boost::variance(xd);
             });
 
             bench.batch(s).run("boost.accu;weighted variance;double", [&]() {
-                m += stat_other::boost::variance(xd, wd); 
+                m += stat_other::boost::variance(xd, wd);
             });
 
             bench.batch(s).run("boost.accu;covariance;double", [&]() {
-                m += stat_other::boost::covariance(xd, yd); 
+                m += stat_other::boost::covariance(xd, yd);
             });
 
             bench.batch(s).run("boost.accu;weighted covariance;double", [&]() {
-                m += stat_other::boost::covariance(xd, yd, wd); 
+                m += stat_other::boost::covariance(xd, yd, wd);
             });
 
             bench.batch(s).run("boost.math;mean;double", [&]() {
-                m += boost::math::statistics::mean(xd); 
+                m += boost::math::statistics::mean(xd);
             });
 
             bench.batch(s).run("boost.math;variance;double", [&]() {
-                m += boost::math::statistics::variance(xd); 
+                m += boost::math::statistics::variance(xd);
             });
 
             bench.batch(s).run("boost.math;covariance;double", [&]() {
-                m += boost::math::statistics::covariance(xd, yd); 
+                m += boost::math::statistics::covariance(xd, yd);
             });
 
             bench.batch(s).run("gsl;mean;double", [&]() {
-                m += stat_other::gsl::mean(xd); 
+                m += stat_other::gsl::mean(xd);
             });
 
             bench.batch(s).run("gsl;variance;double", [&]() {
-                m += stat_other::gsl::variance(xd); 
+                m += stat_other::gsl::variance(xd);
             });
 
             bench.batch(s).run("gsl;covariance;double", [&]() {
-                m += stat_other::gsl::covariance(xd, yd); 
+                m += stat_other::gsl::covariance(xd, yd);
             });
 
             bench.batch(s).run("linasm;mean;double", [&]() {
-                m += stat_other::linasm::variance(xd); 
+                m += stat_other::linasm::variance(xd);
             });
 
             bench.batch(s).run("linasm;variance;double", [&]() {
-                m += stat_other::linasm::variance(xd); 
+                m += stat_other::linasm::variance(xd);
             });
 
             bench.batch(s).run("linasm;covariance;double", [&]() {
-                m += stat_other::linasm::covariance(xd, yd); 
+                m += stat_other::linasm::covariance(xd, yd);
             });
 
             bench.batch(s).run("vstat;mean;float", [&]() {
@@ -343,63 +426,63 @@ namespace util {
             });
 
             bench.batch(s).run("boost.accu;mean;float", [&]() {
-                m += stat_other::boost::mean(xf); 
+                m += stat_other::boost::mean(xf);
             });
 
             bench.batch(s).run("boost.accu;weighted mean;float", [&]() {
-                m += stat_other::boost::mean(xf, wf); 
+                m += stat_other::boost::mean(xf, wf);
             });
 
             bench.batch(s).run("boost.accu;variance;float", [&]() {
-                m += stat_other::boost::variance(xf); 
+                m += stat_other::boost::variance(xf);
             });
 
             bench.batch(s).run("boost.accu;weighted variance;float", [&]() {
-                m += stat_other::boost::variance(xf, wf); 
+                m += stat_other::boost::variance(xf, wf);
             });
 
             bench.batch(s).run("boost.accu;covariance;float", [&]() {
-                m += stat_other::boost::covariance(xf, yf); 
+                m += stat_other::boost::covariance(xf, yf);
             });
 
             bench.batch(s).run("boost.accu;weighted covariance;float", [&]() {
-                m += stat_other::boost::covariance(xf, yf, wf); 
+                m += stat_other::boost::covariance(xf, yf, wf);
             });
 
             bench.batch(s).run("boost.math;mean;float", [&]() {
-                m += boost::math::statistics::mean(xf); 
+                m += boost::math::statistics::mean(xf);
             });
 
             bench.batch(s).run("boost.math;variance;float", [&]() {
-                m += boost::math::statistics::variance(xf); 
+                m += boost::math::statistics::variance(xf);
             });
 
             bench.batch(s).run("boost.math;covariance;float", [&]() {
-                m += boost::math::statistics::covariance(xf, yf); 
+                m += boost::math::statistics::covariance(xf, yf);
             });
 
             bench.batch(s).run("gsl;mean;float", [&]() {
-                m += stat_other::gsl::mean(xf); 
+                m += stat_other::gsl::mean(xf);
             });
 
             bench.batch(s).run("gsl;variance;float", [&]() {
-                m += stat_other::gsl::variance(xf); 
+                m += stat_other::gsl::variance(xf);
             });
 
             bench.batch(s).run("gsl;covariance;float", [&]() {
-                m += stat_other::gsl::covariance(xf, yf); 
+                m += stat_other::gsl::covariance(xf, yf);
             });
 
             bench.batch(s).run("linasm;mean;float", [&]() {
-                m += stat_other::linasm::variance(xf); 
+                m += stat_other::linasm::variance(xf);
             });
 
             bench.batch(s).run("linasm;variance;float", [&]() {
-                m += stat_other::linasm::variance(xf); 
+                m += stat_other::linasm::variance(xf);
             });
 
             bench.batch(s).run("linasm;covariance;float", [&]() {
-                m += stat_other::linasm::covariance(xf, yf); 
+                m += stat_other::linasm::covariance(xf, yf);
             });
         }
 
