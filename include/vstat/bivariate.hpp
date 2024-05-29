@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: Copyright 2020-2023 Heal Research
+// SPDX-FileCopyrightText: Copyright 2020-2024 Heal Research
 
-#ifndef VSTAT_CORRELATION_HPP
-#define VSTAT_CORRELATION_HPP
+#ifndef VSTAT_BIVARIATE_HPP
+#define VSTAT_BIVARIATE_HPP
 
 #include "combine.hpp"
 
@@ -10,7 +10,7 @@ namespace VSTAT_NAMESPACE {
 
 template <typename T>
 struct bivariate_accumulator {
-    static auto load_state(T sx, T sy, T sw, T sxx, T syy, T sxy) -> bivariate_accumulator<T> // NOLINT
+    static auto load_state(T sx, T sy, T sw, T sxx, T syy, T sxy) noexcept -> bivariate_accumulator<T> // NOLINT
     {
         bivariate_accumulator<T> acc;
         acc.sum_w = sw;
@@ -23,7 +23,13 @@ struct bivariate_accumulator {
         return acc;
     }
 
-    inline void operator()(T x, T y)
+    static auto load_state(std::tuple<T, T, T, T, T, T> state) noexcept -> bivariate_accumulator<T>
+    {
+        auto [sx, sy, sw, sxx, syy, sxy] = state;
+        return load_state(sx, sy, sw, sxx, syy, sxy);
+    }
+
+    inline void operator()(T x, T y) noexcept
     {
         T dx = x * sum_w - sum_x;
         T dy = y * sum_w - sum_y;
@@ -41,7 +47,7 @@ struct bivariate_accumulator {
         sum_w_old = sum_w;
     }
 
-    inline void operator()(T x, T y, T w) // NOLINT
+    inline void operator()(T x, T y, T w) noexcept // NOLINT
     {
         T dx = x * sum_w - sum_x;
         T dy = y * sum_w - sum_y;
@@ -60,20 +66,20 @@ struct bivariate_accumulator {
 
     template <typename U>
     requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
-    inline void operator()(U const* x, U const* y)
+    inline void operator()(U const* x, U const* y) noexcept
     {
         (*this)(T{x}, T{y});
     }
 
     template <typename U>
     requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
-    inline void operator()(U const* x, U const* y, U const* w)
+    inline void operator()(U const* x, U const* y, U const* w) noexcept
     {
         (*this)(T{x}, T{y}, T{w});
     }
 
     // performs a reduction on the vector types and returns the sums and the squared residuals sums
-    auto stats() -> std::tuple<double, double, double, double, double, double>
+    auto stats() const noexcept -> std::tuple<double, double, double, double, double, double>
     {
         if constexpr (std::is_floating_point_v<T>) {
             return { sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy };
@@ -131,7 +137,7 @@ struct bivariate_statistics {
         sample_variance_y = syy / (sw - 1);
 
         if (!(sxx > 0 && syy > 0)) {
-            correlation = static_cast<double>(sxx == syy); 
+            correlation = static_cast<double>(sxx == syy);
         } else {
             correlation = sxy / std::sqrt(sxx * syy);
         }
@@ -160,7 +166,6 @@ inline auto operator<<(std::ostream& os, bivariate_statistics const& stats) -> s
        << "\n";
     return os;
 }
-
 } // namespace VSTAT_NAMESPACE
 
 #endif

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: Copyright 2020-2023 Heal Research
+// SPDX-FileCopyrightText: Copyright 2020-2024 Heal Research
 
 #ifndef VSTAT_COMBINE_HPP
 #define VSTAT_COMBINE_HPP
@@ -18,7 +18,7 @@ namespace VSTAT_NAMESPACE {
 namespace detail {
     template<typename T>
     requires eve::simd_value<T>
-    auto unpack(T v) -> auto
+    inline auto unpack(T v) -> auto
     {
         return [&]<std::size_t ...I>(std::index_sequence<I...>){
             return std::array{ v.get(I) ... };
@@ -37,10 +37,14 @@ inline auto combine(T sum_w, T sum_x, T sum_xx) -> double
     if constexpr (T::size() == 2) {
         auto [n0, n1] = detail::unpack(sum_w);
         auto [s0, s1] = detail::unpack(sum_x);
+
+        // this happens when we call stats on an accumulator that
+        // hasn't yet processed any values and the weight is zero
         double f = 1. / (n0 * n1 * (n0 + n1));
+        if (!std::isfinite(f)) { f = 0; }
         return eve::reduce(sum_xx) + f * eve::sqr(n1 * s0 - n0 * s1); // eq. 22
     } else {
-        auto [sum_w0, sum_w1] = sum_w.slice(); 
+        auto [sum_w0, sum_w1] = sum_w.slice();
         auto [sum_x0, sum_x1] = sum_x.slice();
         auto [sum_xx0, sum_xx1] = sum_xx.slice();
 
@@ -53,7 +57,8 @@ inline auto combine(T sum_w, T sum_x, T sum_xx) -> double
         double q0 = combine(sum_w0, sum_x0, sum_xx0);
         double q1 = combine(sum_w1, sum_x1, sum_xx1);
 
-        double f   = 1. / (n0 * n1 * (n0 + n1));
+        double f  = 1. / (n0 * n1 * (n0 + n1));
+        if (!std::isfinite(f)) { f = 0; }
         return q0 + q1 + f * eve::sqr(n1 * s0 - n0 * s1); // eq. 22
     }
 }
@@ -71,6 +76,8 @@ inline auto combine(T sum_w, T sum_x, T sum_y, T sum_xx, T sum_yy, T sum_xy) -> 
         auto [sxy0, sxy1] = detail::unpack(sum_xy);
 
         double f = 1. / (n0 * n1 * (n0 + n1));
+        if (!std::isfinite(f)) { f = 0; }
+
         double sx = n1 * sx0 - n0 * sx1;
         double sy = n1 * sy0 - n0 * sy1;
         double sxx = sxx0 + sxx1 + f * sx * sx;
@@ -97,6 +104,8 @@ inline auto combine(T sum_w, T sum_x, T sum_y, T sum_xx, T sum_yy, T sum_xy) -> 
         double sy1 = eve::reduce(sum_y1);
 
         double f   = 1. / (n0 * n1 * (n0 + n1));
+        if (!std::isfinite(f)) { f = 0; }
+
         double sx = n1 * sx0 - n0 * sx1;
         double sy = n1 * sy0 - n0 * sy1;
         double sxx = sxx0 + sxx1 + f * sx * sx;

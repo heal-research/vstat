@@ -4,10 +4,6 @@
 #ifndef VSTAT_UTIL_HPP
 #define VSTAT_UTIL_HPP
 
-#include <iterator>
-#include <type_traits>
-#include <utility>
-
 #if defined(__GNUC__) || defined(__GNUG__)
 #define VSTAT_FORCE_INLINE __attribute__((always_inline)) inline
 #else

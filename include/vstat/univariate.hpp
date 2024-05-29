@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: Copyright 2020-2023 Heal Research
+// SPDX-FileCopyrightText: Copyright 2020-2024 Heal Research
 
-#ifndef VSTAT_VARIANCE_HPP
-#define VSTAT_VARIANCE_HPP
+#ifndef VSTAT_UNIVARIATE_HPP
+#define VSTAT_UNIVARIATE_HPP
 
 #include "combine.hpp"
 
 namespace VSTAT_NAMESPACE {
-
+/*!
+    \brief Univariate accumulator object
+*/
 template <typename T>
 struct univariate_accumulator {
     static auto load_state(T sw, T sx, T sxx) noexcept -> univariate_accumulator<T>
@@ -18,6 +20,12 @@ struct univariate_accumulator {
         acc.sum_x = sx;
         acc.sum_xx = sxx;
         return acc;
+    }
+
+    static auto load_state(std::tuple<T, T, T> state) noexcept -> univariate_accumulator<T>
+    {
+        auto [sw, sx, sxx] = state;
+        return load_state(sw, sx, sxx);
     }
 
     inline void operator()(T x) noexcept
@@ -40,14 +48,14 @@ struct univariate_accumulator {
     }
 
     template<typename U>
-    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T> 
+    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
     inline void operator()(U const* x) noexcept
     {
         (*this)(T{x});
     }
 
     template<typename U>
-    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T> 
+    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
     inline void operator()(U const* x, U const* w) noexcept
     {
         (*this)(T{x}, T{w});
