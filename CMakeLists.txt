@@ -43,6 +43,18 @@ if (NOT VSTAT_NAMESPACE)
 endif()
 message(STATUS "vstat namespace defined as '${VSTAT_NAMESPACE}'")
 
+# ---- Python module ----
+
+if(vstat_BUILD_PYTHON)
+    find_package(Python COMPONENTS Interpreter Development REQUIRED)
+    find_package(nanobind REQUIRED)
+    set(VSTAT_PYTHON_SITELIB "${CMAKE_INSTALL_LIBDIR}/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages/")
+
+    nanobind_add_module(vstat_python ${PROJECT_SOURCE_DIR}/src/vstat.cpp)
+    target_link_libraries(vstat_python PRIVATE vstat::vstat)
+    set_target_properties(vstat_python PROPERTIES OUTPUT_NAME "vstat")
+endif()
+
 # ---- Install rules ----
 
 if(NOT CMAKE_SKIP_INSTALL_RULES)
@@ -59,5 +71,4 @@ elseif(NOT PROJECT_IS_TOP_LEVEL)
       "Developer mode is intended for developers of vstat"
   )
 endif()
-
 include(cmake/dev-mode.cmake)

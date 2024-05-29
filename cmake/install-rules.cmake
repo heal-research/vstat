@@ -23,6 +23,14 @@ install(
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
+if (vstat_BUILD_PYTHON AND Python_FOUND)
+    install(
+        TARGETS vstat_python
+        EXPORT vstatTargets
+        LIBRARY DESTINATION "${VSTAT_PYTHON_SITELIB}"
+    )
+endif()
+
 write_basic_package_version_file(
     "${package}ConfigVersion.cmake"
     COMPATIBILITY SameMajorVersion
