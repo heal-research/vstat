@@ -25,6 +25,10 @@
 var NAVTREE =
 [
   [ "vstat", "index.html", [
+    [ "Introduction", "md_index.html", [
+      [ "Methodology", "md_index.html#autotoc_md10", null ],
+      [ "Bibliography", "md_index.html#autotoc_md11", null ]
+    ] ],
     [ "Modules", "modules.html", "modules" ],
     [ "Classes", "annotated.html", [
       [ "Class List", "annotated.html", "annotated_dup" ],
