@@ -14,6 +14,7 @@
         };
         stdenv_ = pkgs.llvmPackages_18.stdenv;
         pythonVersion = "${pkgs.python3.sourceVersion.major}.${pkgs.python3.sourceVersion.minor}";
+        nanobind = pkgs.python3Packages.nanobind;
       in
       rec {
         devShells.default = stdenv_.mkDerivation {
@@ -28,7 +29,7 @@
             gdb
             doxygen
             valgrind
-            (python3.withPackages(ps: with ps; [ ps.nanobind ]))
+            nanobind
           ];
           buildInputs = packages.default.buildInputs
             ++ (with pkgs; [ boost doctest gsl linasm pkg-config ]);
@@ -42,8 +43,8 @@
           nativeBuildInputs = with pkgs; [ cmake ];
 
           buildInputs = with pkgs; [
-            (python3.withPackages(ps: with ps; [ ps.nanobind ]))
             eve
+            nanobind
           ];
 
           cmakeFlags = [
@@ -51,11 +52,8 @@
             "-DCMAKE_CXX_FLAGS=${
               if pkgs.stdenv.hostPlatform.isx86_64 then "-march=x86-64" else ""
             }"
+            "-DCMAKE_PREFIX_PATH=${nanobind}/lib/python${pythonVersion}/site-packages"
           ];
-
-          postInstall = ''
-            export PYTHONPATH=$PYTHONPATH:$out/lib/${pythonVersion}/site-packages
-          '';
         };
       });
 }
