@@ -23,11 +23,14 @@ install(
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
-if (vstat_BUILD_PYTHON AND Python_FOUND)
+if (vstat_BUILD_PYTHON AND Python_FOUND AND nanobind_FOUND)
+    execute_process(
+        COMMAND "${Python_EXECUTABLE}" -c "import sysconfig as sc; print(sc.get_path('platlib', 'posix_user', {'userbase': ''})[1:])"
+        OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE VSTAT_PYTHON_SITELIB)
     install(
         TARGETS vstat_python
         EXPORT vstatTargets
-        LIBRARY DESTINATION "${VSTAT_PYTHON_SITELIB}"
+        LIBRARY DESTINATION "${VSTAT_PYTHON_SITELIB}/${package}"
     )
 endif()
 
@@ -67,3 +70,4 @@ install(
 if(PROJECT_IS_TOP_LEVEL)
   include(CPack)
 endif()
+
