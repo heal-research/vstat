@@ -7,7 +7,9 @@
 #include "combine.hpp"
 
 namespace VSTAT_NAMESPACE {
-
+/*!
+    \brief Bivariate accumulator object
+*/
 template <typename T>
 struct bivariate_accumulator {
     static auto load_state(T sx, T sy, T sw, T sxx, T syy, T sxy) noexcept -> bivariate_accumulator<T> // NOLINT
@@ -102,6 +104,9 @@ private:
     T sum_xy{0};
 };
 
+/*!
+    \brief Bivariate statistics
+*/
 struct bivariate_statistics {
     double count;
     double sum_x;

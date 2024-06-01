@@ -78,6 +78,9 @@ private:
     T sum_xx{0};
 };
 
+/*!
+    \brief Univariate statistics
+*/
 struct univariate_statistics {
     double count;
     double sum;
