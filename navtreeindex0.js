@@ -41,7 +41,10 @@ var NAVTREEINDEX0 =
 "md_index.html#autotoc_md11":[0,1],
 "modules.html":[1],
 "pages.html":[],
-"structVSTAT__NAMESPACE_1_1univariate__accumulator.html":[2,0,0,0],
+"structVSTAT__NAMESPACE_1_1bivariate__accumulator.html":[2,0,0,0],
+"structVSTAT__NAMESPACE_1_1bivariate__statistics.html":[2,0,0,1],
+"structVSTAT__NAMESPACE_1_1univariate__accumulator.html":[2,0,0,2],
+"structVSTAT__NAMESPACE_1_1univariate__statistics.html":[2,0,0,3],
 "univariate_8hpp_source.html":[3,0,0,0,2],
 "util_8hpp_source.html":[3,0,0,0,3],
 "vstat_8hpp_source.html":[3,0,0,0,4]

@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['univariate_5faccumulator_12',['univariate_accumulator',['../structVSTAT__NAMESPACE_1_1univariate__accumulator.html',1,'VSTAT_NAMESPACE']]]
+  ['bivariate_5faccumulator_15',['bivariate_accumulator',['../structVSTAT__NAMESPACE_1_1bivariate__accumulator.html',1,'VSTAT_NAMESPACE']]],
+  ['bivariate_5fstatistics_16',['bivariate_statistics',['../structVSTAT__NAMESPACE_1_1bivariate__statistics.html',1,'VSTAT_NAMESPACE']]]
 ];

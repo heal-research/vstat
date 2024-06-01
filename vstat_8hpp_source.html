@@ -179,7 +179,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;<span class="keyword">namespace </span>univariate {</div>
 <div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, <span class="keyword">typename</span> F = std::<span class="keywordtype">id</span>entity&gt;</div>
 <div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;requires concepts::arithmetic_projection&lt;F, std::iter_value_t&lt;I&gt;&gt;</div>
-<div class="line"><a name="l00068"></a><span class="lineno"><a class="line" href="group__Univariate.html#ga49abd094b91715793a07608562f73e5d">   68</a></span>&#160;<span class="keyword">inline</span> <span class="keyword">auto</span> <a class="code" href="group__Bivariate.html#ga2ef63d6210cde37bd0cfd3ef293afbec">accumulate</a>(I first, std::sized_sentinel_for&lt;I&gt; <span class="keyword">auto</span> last, F&amp;&amp; f = F{}) noexcept -&gt; univariate_statistics</div>
+<div class="line"><a name="l00068"></a><span class="lineno"><a class="line" href="group__Univariate.html#ga49abd094b91715793a07608562f73e5d">   68</a></span>&#160;<span class="keyword">inline</span> <span class="keyword">auto</span> <a class="code" href="group__Bivariate.html#ga2ef63d6210cde37bd0cfd3ef293afbec">accumulate</a>(I first, std::sized_sentinel_for&lt;I&gt; <span class="keyword">auto</span> last, F&amp;&amp; f = F{}) noexcept -&gt; <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a></div>
 <div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;{</div>
 <div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;    <span class="keyword">using</span> wide = eve::wide&lt;T&gt;;</div>
 <div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;    <span class="keyword">auto</span> constexpr s{ wide::size() };</div>
@@ -214,7 +214,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00100"></a><span class="lineno">  100</span>&#160; </div>
 <div class="line"><a name="l00113"></a><span class="lineno">  113</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J, <span class="keyword">typename</span> F = std::<span class="keywordtype">id</span>entity&gt;</div>
 <div class="line"><a name="l00114"></a><span class="lineno">  114</span>&#160;requires concepts::arithmetic_projection&lt;F, std::iter_value_t&lt;I&gt;&gt; and std::is_arithmetic_v&lt;std::iter_value_t&lt;J&gt;&gt;</div>
-<div class="line"><a name="l00115"></a><span class="lineno"><a class="line" href="group__Univariate.html#gaebc776ca188820d43986fb5e1dc1d8be">  115</a></span>&#160;<span class="keyword">inline</span> <span class="keyword">auto</span> <a class="code" href="group__Bivariate.html#ga2ef63d6210cde37bd0cfd3ef293afbec">accumulate</a>(I first1, std::sized_sentinel_for&lt;I&gt; <span class="keyword">auto</span> last1, J first2, F&amp;&amp; f = F{}) noexcept -&gt; univariate_statistics</div>
+<div class="line"><a name="l00115"></a><span class="lineno"><a class="line" href="group__Univariate.html#gaebc776ca188820d43986fb5e1dc1d8be">  115</a></span>&#160;<span class="keyword">inline</span> <span class="keyword">auto</span> <a class="code" href="group__Bivariate.html#ga2ef63d6210cde37bd0cfd3ef293afbec">accumulate</a>(I first1, std::sized_sentinel_for&lt;I&gt; <span class="keyword">auto</span> last1, J first2, F&amp;&amp; f = F{}) noexcept -&gt; <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a></div>
 <div class="line"><a name="l00116"></a><span class="lineno">  116</span>&#160;{</div>
 <div class="line"><a name="l00117"></a><span class="lineno">  117</span>&#160;    <span class="keyword">using</span> wide = eve::wide&lt;T&gt;;</div>
 <div class="line"><a name="l00118"></a><span class="lineno">  118</span>&#160;    <span class="keyword">auto</span> constexpr s{ wide::size() };</div>
@@ -458,8 +458,8 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00453"></a><span class="lineno">  453</span>&#160;        sy(*first1);</div>
 <div class="line"><a name="l00454"></a><span class="lineno">  454</span>&#160;    }</div>
 <div class="line"><a name="l00455"></a><span class="lineno">  455</span>&#160; </div>
-<div class="line"><a name="l00456"></a><span class="lineno">  456</span>&#160;    <span class="keyword">auto</span> <span class="keyword">const</span> rss = univariate_statistics(sx).sum;</div>
-<div class="line"><a name="l00457"></a><span class="lineno">  457</span>&#160;    <span class="keyword">auto</span> <span class="keyword">const</span> tss = univariate_statistics(sy).ssr;</div>
+<div class="line"><a name="l00456"></a><span class="lineno">  456</span>&#160;    <span class="keyword">auto</span> <span class="keyword">const</span> rss = <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(sx).sum;</div>
+<div class="line"><a name="l00457"></a><span class="lineno">  457</span>&#160;    <span class="keyword">auto</span> <span class="keyword">const</span> tss = <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(sy).ssr;</div>
 <div class="line"><a name="l00458"></a><span class="lineno">  458</span>&#160; </div>
 <div class="line"><a name="l00459"></a><span class="lineno">  459</span>&#160;    <span class="keywordflow">return</span> tss &lt; std::numeric_limits&lt;double&gt;::epsilon()</div>
 <div class="line"><a name="l00460"></a><span class="lineno">  460</span>&#160;        ? std::numeric_limits&lt;double&gt;::lowest()</div>
@@ -493,8 +493,8 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00499"></a><span class="lineno">  499</span>&#160;        sy(*first1, *first3);</div>
 <div class="line"><a name="l00500"></a><span class="lineno">  500</span>&#160;    }</div>
 <div class="line"><a name="l00501"></a><span class="lineno">  501</span>&#160; </div>
-<div class="line"><a name="l00502"></a><span class="lineno">  502</span>&#160;    <span class="keyword">auto</span> <span class="keyword">const</span> rss = univariate_statistics(sx).sum;</div>
-<div class="line"><a name="l00503"></a><span class="lineno">  503</span>&#160;    <span class="keyword">auto</span> <span class="keyword">const</span> tss = univariate_statistics(sy).ssr;</div>
+<div class="line"><a name="l00502"></a><span class="lineno">  502</span>&#160;    <span class="keyword">auto</span> <span class="keyword">const</span> rss = <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(sx).sum;</div>
+<div class="line"><a name="l00503"></a><span class="lineno">  503</span>&#160;    <span class="keyword">auto</span> <span class="keyword">const</span> tss = <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(sy).ssr;</div>
 <div class="line"><a name="l00504"></a><span class="lineno">  504</span>&#160; </div>
 <div class="line"><a name="l00505"></a><span class="lineno">  505</span>&#160;    <span class="keywordflow">return</span> tss &lt; std::numeric_limits&lt;double&gt;::epsilon()</div>
 <div class="line"><a name="l00506"></a><span class="lineno">  506</span>&#160;        ? std::numeric_limits&lt;double&gt;::lowest()</div>
@@ -521,7 +521,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00536"></a><span class="lineno">  536</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2) {</div>
 <div class="line"><a name="l00537"></a><span class="lineno">  537</span>&#160;        se(eve::sqr(*first1 - *first2));</div>
 <div class="line"><a name="l00538"></a><span class="lineno">  538</span>&#160;    }</div>
-<div class="line"><a name="l00539"></a><span class="lineno">  539</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).mean;</div>
+<div class="line"><a name="l00539"></a><span class="lineno">  539</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).mean;</div>
 <div class="line"><a name="l00540"></a><span class="lineno">  540</span>&#160;}</div>
 <div class="line"><a name="l00541"></a><span class="lineno">  541</span>&#160; </div>
 <div class="line"><a name="l00551"></a><span class="lineno">  551</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J, std::input_iterator K&gt;</div>
@@ -545,7 +545,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00569"></a><span class="lineno">  569</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2, ++first3) {</div>
 <div class="line"><a name="l00570"></a><span class="lineno">  570</span>&#160;        se(eve::sqr(*first1 - *first2), *first3);</div>
 <div class="line"><a name="l00571"></a><span class="lineno">  571</span>&#160;    }</div>
-<div class="line"><a name="l00572"></a><span class="lineno">  572</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).mean;</div>
+<div class="line"><a name="l00572"></a><span class="lineno">  572</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).mean;</div>
 <div class="line"><a name="l00573"></a><span class="lineno">  573</span>&#160;}</div>
 <div class="line"><a name="l00574"></a><span class="lineno">  574</span>&#160; </div>
 <div class="line"><a name="l00584"></a><span class="lineno">  584</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J&gt;</div>
@@ -568,7 +568,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00601"></a><span class="lineno">  601</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2) {</div>
 <div class="line"><a name="l00602"></a><span class="lineno">  602</span>&#160;        se(eve::sqr(eve::log1p(*first1) - eve::log1p(*first2)));</div>
 <div class="line"><a name="l00603"></a><span class="lineno">  603</span>&#160;    }</div>
-<div class="line"><a name="l00604"></a><span class="lineno">  604</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).mean;</div>
+<div class="line"><a name="l00604"></a><span class="lineno">  604</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).mean;</div>
 <div class="line"><a name="l00605"></a><span class="lineno">  605</span>&#160;}</div>
 <div class="line"><a name="l00606"></a><span class="lineno">  606</span>&#160; </div>
 <div class="line"><a name="l00616"></a><span class="lineno">  616</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J, std::input_iterator K&gt;</div>
@@ -592,7 +592,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00634"></a><span class="lineno">  634</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2, ++first3) {</div>
 <div class="line"><a name="l00635"></a><span class="lineno">  635</span>&#160;        se(eve::sqr(eve::log1p(*first1) - eve::log1p(*first2)), *first3);</div>
 <div class="line"><a name="l00636"></a><span class="lineno">  636</span>&#160;    }</div>
-<div class="line"><a name="l00637"></a><span class="lineno">  637</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).mean;</div>
+<div class="line"><a name="l00637"></a><span class="lineno">  637</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).mean;</div>
 <div class="line"><a name="l00638"></a><span class="lineno">  638</span>&#160;}</div>
 <div class="line"><a name="l00639"></a><span class="lineno">  639</span>&#160; </div>
 <div class="line"><a name="l00649"></a><span class="lineno">  649</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J&gt;</div>
@@ -615,7 +615,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00666"></a><span class="lineno">  666</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2) {</div>
 <div class="line"><a name="l00667"></a><span class="lineno">  667</span>&#160;        se(eve::abs(*first1 - *first2));</div>
 <div class="line"><a name="l00668"></a><span class="lineno">  668</span>&#160;    }</div>
-<div class="line"><a name="l00669"></a><span class="lineno">  669</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).mean;</div>
+<div class="line"><a name="l00669"></a><span class="lineno">  669</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).mean;</div>
 <div class="line"><a name="l00670"></a><span class="lineno">  670</span>&#160;}</div>
 <div class="line"><a name="l00671"></a><span class="lineno">  671</span>&#160; </div>
 <div class="line"><a name="l00681"></a><span class="lineno">  681</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J, std::input_iterator K&gt;</div>
@@ -639,7 +639,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00699"></a><span class="lineno">  699</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2, ++first3) {</div>
 <div class="line"><a name="l00700"></a><span class="lineno">  700</span>&#160;        se(eve::abs(*first1 - *first2), *first3);</div>
 <div class="line"><a name="l00701"></a><span class="lineno">  701</span>&#160;    }</div>
-<div class="line"><a name="l00702"></a><span class="lineno">  702</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).mean;</div>
+<div class="line"><a name="l00702"></a><span class="lineno">  702</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).mean;</div>
 <div class="line"><a name="l00703"></a><span class="lineno">  703</span>&#160;}</div>
 <div class="line"><a name="l00704"></a><span class="lineno">  704</span>&#160; </div>
 <div class="line"><a name="l00717"></a><span class="lineno">  717</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J&gt;</div>
@@ -664,7 +664,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00736"></a><span class="lineno">  736</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2) {</div>
 <div class="line"><a name="l00737"></a><span class="lineno">  737</span>&#160;        se(eve::abs(*first1 - *first2) / eve::max(eps, eve::abs(*first1)));</div>
 <div class="line"><a name="l00738"></a><span class="lineno">  738</span>&#160;    }</div>
-<div class="line"><a name="l00739"></a><span class="lineno">  739</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).mean;</div>
+<div class="line"><a name="l00739"></a><span class="lineno">  739</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).mean;</div>
 <div class="line"><a name="l00740"></a><span class="lineno">  740</span>&#160;}</div>
 <div class="line"><a name="l00741"></a><span class="lineno">  741</span>&#160; </div>
 <div class="line"><a name="l00751"></a><span class="lineno">  751</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J, std::input_iterator K&gt;</div>
@@ -688,7 +688,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00769"></a><span class="lineno">  769</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2, ++first3) {</div>
 <div class="line"><a name="l00770"></a><span class="lineno">  770</span>&#160;        se(eve::abs(*first1 - *first2), *first3);</div>
 <div class="line"><a name="l00771"></a><span class="lineno">  771</span>&#160;    }</div>
-<div class="line"><a name="l00772"></a><span class="lineno">  772</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).mean;</div>
+<div class="line"><a name="l00772"></a><span class="lineno">  772</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).mean;</div>
 <div class="line"><a name="l00773"></a><span class="lineno">  773</span>&#160;}</div>
 <div class="line"><a name="l00774"></a><span class="lineno">  774</span>&#160; </div>
 <div class="line"><a name="l00784"></a><span class="lineno">  784</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J&gt;</div>
@@ -713,7 +713,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00803"></a><span class="lineno">  803</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2) {</div>
 <div class="line"><a name="l00804"></a><span class="lineno">  804</span>&#160;        se(*first2 - *first1 * eve::log(*first2) + eve::log_abs_gamma(T{1} + *first1));</div>
 <div class="line"><a name="l00805"></a><span class="lineno">  805</span>&#160;    }</div>
-<div class="line"><a name="l00806"></a><span class="lineno">  806</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).sum;</div>
+<div class="line"><a name="l00806"></a><span class="lineno">  806</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).sum;</div>
 <div class="line"><a name="l00807"></a><span class="lineno">  807</span>&#160;}</div>
 <div class="line"><a name="l00808"></a><span class="lineno">  808</span>&#160; </div>
 <div class="line"><a name="l00818"></a><span class="lineno">  818</span>&#160;<span class="keyword">template</span>&lt;std::<span class="keywordtype">float</span>ing_po<span class="keywordtype">int</span> T, std::input_iterator I, std::input_iterator J, std::input_iterator K&gt;</div>
@@ -738,7 +738,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="line"><a name="l00837"></a><span class="lineno">  837</span>&#160;    <span class="keywordflow">for</span>(; first1 &lt; last1; ++first1, ++first2, ++first3) {</div>
 <div class="line"><a name="l00838"></a><span class="lineno">  838</span>&#160;        se(*first2 * *first3 - *first1 * eve::log(*first2 * *first3) + eve::log_abs_gamma(T{1} + *first1));</div>
 <div class="line"><a name="l00839"></a><span class="lineno">  839</span>&#160;    }</div>
-<div class="line"><a name="l00840"></a><span class="lineno">  840</span>&#160;    <span class="keywordflow">return</span> univariate_statistics(se).sum;</div>
+<div class="line"><a name="l00840"></a><span class="lineno">  840</span>&#160;    <span class="keywordflow">return</span> <a class="code" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">univariate_statistics</a>(se).sum;</div>
 <div class="line"><a name="l00841"></a><span class="lineno">  841</span>&#160;}</div>
 <div class="line"><a name="l00842"></a><span class="lineno">  842</span>&#160;} <span class="comment">// namespace metrics</span></div>
 <div class="line"><a name="l00843"></a><span class="lineno">  843</span>&#160; </div>
@@ -753,6 +753,7 @@ $(document).ready(function(){initNavTree('vstat_8hpp_source.html',''); initResiz
 <div class="ttc" id="agroup__Metrics_html_gacf27ea2cf4edc369707d2f1ff58977e6"><div class="ttname"><a href="group__Metrics.html#gacf27ea2cf4edc369707d2f1ff58977e6">VSTAT_NAMESPACE::metrics::r2_score</a></div><div class="ttdeci">auto r2_score(I first1, std::sentinel_for&lt; I &gt; auto last1, J first2, K first3) noexcept -&gt; double</div><div class="ttdoc">Computes the weighted coefficient of determination .</div><div class="ttdef"><b>Definition:</b> vstat.hpp:476</div></div>
 <div class="ttc" id="agroup__Metrics_html_gaf2912b6f85e72b2c27b99b60518f7ecc"><div class="ttname"><a href="group__Metrics.html#gaf2912b6f85e72b2c27b99b60518f7ecc">VSTAT_NAMESPACE::metrics::mean_absolute_error</a></div><div class="ttdeci">auto mean_absolute_error(I first1, std::sentinel_for&lt; I &gt; auto last1, J first2, K first3) noexcept -&gt; double</div><div class="ttdoc">Weighted mean absolute error.</div><div class="ttdef"><b>Definition:</b> vstat.hpp:682</div></div>
 <div class="ttc" id="astructVSTAT__NAMESPACE_1_1univariate__accumulator_html"><div class="ttname"><a href="structVSTAT__NAMESPACE_1_1univariate__accumulator.html">VSTAT_NAMESPACE::univariate_accumulator</a></div><div class="ttdoc">Univariate accumulator object.</div><div class="ttdef"><b>Definition:</b> univariate.hpp:14</div></div>
+<div class="ttc" id="astructVSTAT__NAMESPACE_1_1univariate__statistics_html"><div class="ttname"><a href="structVSTAT__NAMESPACE_1_1univariate__statistics.html">VSTAT_NAMESPACE::univariate_statistics</a></div><div class="ttdoc">Univariate statistics.</div><div class="ttdef"><b>Definition:</b> univariate.hpp:84</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

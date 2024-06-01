@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['regression_20metrics_21',['Regression metrics',['../group__Metrics.html',1,'']]]
+  ['regression_20metrics_27',['Regression metrics',['../group__Metrics.html',1,'']]]
 ];
