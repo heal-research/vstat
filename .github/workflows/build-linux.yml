@@ -16,18 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create venv 
+      - name: Build wheel in venv 
         shell: bash -l {0}
         run: |
           python -m venv vstat-env
           source vstat-env/bin/activate
-          pip install nanobind scikit-build ninja
-          deactivate
-
-      - name: Run the build script
-        shell: bash -l {0}
-        run: |
+          pip install ninja nanobind scikit-build
           export CC=gcc
           export CXX=g++
           python setup.py bdist_wheel
+          deactivate
 
