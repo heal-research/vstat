@@ -15,6 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 docs_early_return()
 
+include(cmake/CPM.cmake)
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
@@ -35,7 +36,12 @@ target_include_directories(
 target_compile_features(vstat_vstat INTERFACE cxx_std_20)
 
 # ---- Dependencies ----
-find_package(eve REQUIRED)
+CPMAddPackage(
+    NAME eve
+    VERSION 2023.02.15
+    GITHUB_REPOSITORY jfalcou/eve
+    OPTIONS "EVE_BUILD_TEST OFF"
+)
 target_link_libraries(vstat_vstat INTERFACE eve::eve)
 
 if (NOT VSTAT_NAMESPACE)

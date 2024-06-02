@@ -19,8 +19,7 @@
             overlays = [ foolnotion.overlay ];
           };
           stdenv = pkgs.llvmPackages_18.stdenv;
-          pythonVersion = "${pkgs.python3.sourceVersion.major}.${pkgs.python3.sourceVersion.minor}";
-          nanobind = pkgs.python3Packages.nanobind.overridePythonAttrs(old: { doCheck = false; });
+          nanobind = pkgs.python3Packages.nanobind;
         in
         rec {
           devShells.default = stdenv.mkDerivation {
@@ -59,11 +58,7 @@
             src = self;
             nativeBuildInputs = with pkgs; [ cmake ];
             buildInputs = packages.vstat.buildInputs ++ [ nanobind ]; 
-
-            cmakeFlags = packages.vstat.cmakeFlags ++ [
-              "-Dvstat_BUILD_PYTHON=ON"
-              "-DCMAKE_PREFIX_PATH=${nanobind}/lib/python${pythonVersion}/site-packages"
-            ];
+            cmakeFlags = packages.vstat.cmakeFlags ++ [ "-Dvstat_BUILD_PYTHON=ON" ];
           };
 
           packages.default = packages.vstat;
