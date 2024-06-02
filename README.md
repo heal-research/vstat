@@ -5,6 +5,9 @@
 
 ### Vectorized statistics using SIMD primitives
 
+[![build-linux](https://github.com/heal-research/vstat/actions/workflows/build-linux.yml/badge.svg)](https://github.com/heal-research/vstat/actions/workflows/build-linux.yml)
+[![build-macos](https://github.com/heal-research/vstat/actions/workflows/build-macos.yml/badge.svg)](https://github.com/heal-research/vstat/actions/workflows/build-macos.yml)
+
 ---
 
 ### Introduction
