@@ -1,0 +1,29 @@
+name: build-macos
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+jobs:
+  build-python-module:
+    runs-on: macos-14 
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheel in venv 
+        shell: bash -l {0}
+        run: |
+          python -m venv vstat-env
+          source vstat-env/bin/activate
+          pip install ninja nanobind scikit-build
+          export CC=$(brew --prefix llvm@15)/bin/clang
+          export CXX=$(brew --prefix llvm@15)/bin/clang++
+          python setup.py bdist_wheel
+          deactivate
+
