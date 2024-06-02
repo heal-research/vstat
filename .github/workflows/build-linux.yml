@@ -1,0 +1,33 @@
+name: build-linux
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+jobs:
+  build-python-module:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create venv 
+        shell: bash -l {0}
+        run: |
+          python -m venv vstat-env
+          source vstat-env/bin/activate
+          pip install nanobind scikit-build ninja
+          deactivate
+
+      - name: Run the build script
+        shell: bash -l {0}
+        run: |
+          export CC=gcc
+          export CXX=g++
+          python setup.py bdist_wheel
+
