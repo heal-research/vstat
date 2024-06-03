@@ -50,6 +50,7 @@
               "-DCMAKE_CXX_FLAGS=${
                 if pkgs.stdenv.hostPlatform.isx86_64 then "-march=x86-64" else ""
               }"
+              "-DCPM_USE_LOCAL_PACKAGES=1"
             ];
           };
 
