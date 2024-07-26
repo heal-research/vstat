@@ -19,7 +19,13 @@
             overlays = [ foolnotion.overlay ];
           };
           stdenv = pkgs.llvmPackages_18.stdenv;
-          nanobind = pkgs.python3Packages.nanobind;
+          python = pkgs.python3.override {
+            self = python;
+            packageOverrides = prev: super: {
+              nanobind = super.nanobind.overrideAttrs(old: { doCheck = false; });
+            };
+          };
+          nanobind = python.pkgs.nanobind;
         in
         rec {
           devShells.default = stdenv.mkDerivation {
