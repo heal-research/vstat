@@ -19,13 +19,15 @@
             overlays = [ foolnotion.overlay ];
           };
           stdenv = pkgs.llvmPackages_18.stdenv;
-          python = pkgs.python3.override {
-            self = python;
-            packageOverrides = prev: super: {
-              nanobind = super.nanobind.overrideAttrs(old: { doCheck = false; });
+          pythonPkgs = pkgs.python3Packages.override {
+            overrides = self: super: {
+              nanobind = super.nanobind.overridePythonAttrs (old: {
+                doCheck = false;
+                build-system = old.build-system ++ [ pythonPkgs.typing-extensions ];
+              });
             };
           };
-          nanobind = python.pkgs.nanobind;
+          nanobind = pythonPkgs.nanobind;
         in
         rec {
           devShells.default = stdenv.mkDerivation {
@@ -64,7 +66,7 @@
             name = "vstat";
             src = self;
             nativeBuildInputs = with pkgs; [ cmake ];
-            buildInputs = packages.vstat.buildInputs ++ [ nanobind ]; 
+            buildInputs = packages.vstat.buildInputs ++ [ nanobind ];
             cmakeFlags = packages.vstat.cmakeFlags ++ [ "-Dvstat_BUILD_PYTHON=ON" ];
           };
 
