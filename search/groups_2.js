@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['univariate_20statistics_28',['Univariate statistics',['../group__Univariate.html',1,'']]]
+  ['regression_20metrics_0',['Regression metrics',['../group__Metrics.html',1,'']]]
 ];

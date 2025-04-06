@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['r2_5fscore_10',['r2_score',['../group__Metrics.html#gaf7bc72fd015073d1e874908c34a8b20b',1,'VSTAT_NAMESPACE::metrics::r2_score(I first1, std::sentinel_for&lt; I &gt; auto last1, J first2) noexcept -&gt; double'],['../group__Metrics.html#gacf27ea2cf4edc369707d2f1ff58977e6',1,'VSTAT_NAMESPACE::metrics::r2_score(I first1, std::sentinel_for&lt; I &gt; auto last1, J first2, K first3) noexcept -&gt; double']]],
-  ['regression_20metrics_11',['Regression metrics',['../group__Metrics.html',1,'']]]
+  ['poisson_5fneg_5flikelihood_5floss_0',['poisson_neg_likelihood_loss',['../group__Metrics.html#ga4a9e84afea4023e123e85fc06c746541',1,'VSTAT_NAMESPACE::metrics::poisson_neg_likelihood_loss(I first1, std::sentinel_for&lt; I &gt; auto last1, J first2) noexcept -&gt; double'],['../group__Metrics.html#gaea44b249373f16e3eab3dc0ad6c5e15f',1,'VSTAT_NAMESPACE::metrics::poisson_neg_likelihood_loss(I first1, std::sentinel_for&lt; I &gt; auto last1, J first2, K first3) noexcept -&gt; double']]],
+  ['primitives_1',['Vectorized statistics using SIMD primitives',['../index.html#autotoc_md0',1,'']]]
 ];

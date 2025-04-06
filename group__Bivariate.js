@@ -1,4 +1,4 @@
 var group__Bivariate =
 [
-    [ "accumulate", "group__Bivariate.html#ga2ef63d6210cde37bd0cfd3ef293afbec", null ]
+    [ "accumulate", "group__Bivariate.html#gaacc97164ce2d352d9343f990ac1c859f", null ]
 ];
