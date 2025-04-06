@@ -10,7 +10,7 @@
 
   outputs = inputs@{ self, flake-parts, nixpkgs, foolnotion }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
 
       perSystem = { pkgs, system, ... }:
         let
@@ -18,7 +18,7 @@
             inherit system;
             overlays = [ foolnotion.overlay ];
           };
-          stdenv = pkgs.llvmPackages_18.stdenv;
+          stdenv = pkgs.llvmPackages_latest.stdenv;
           pythonPkgs = pkgs.python3Packages.override {
             overrides = self: super: {
               nanobind = super.nanobind.overridePythonAttrs (old: {
@@ -36,8 +36,7 @@
             impureUseNativeOptimizations = true;
             nativeBuildInputs = with pkgs; [
               cmake
-              clang_18
-              clang-tools_18
+              clang-tools
               cppcheck
               gdb
               doxygen
@@ -45,7 +44,8 @@
               nanobind
             ];
             buildInputs = packages.default.buildInputs
-              ++ (with pkgs; [ boost doctest gsl linasm pkg-config ]);
+              ++ (with pkgs; [ boost doctest gsl pkg-config ])
+             ++ (with pkgs; if pkgs.stdenv.isx86_64 then [ linasm ] else []);
           };
 
           packages.vstat = stdenv.mkDerivation {
