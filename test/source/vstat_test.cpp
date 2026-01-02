@@ -64,7 +64,7 @@ namespace util {
             auto x = util::generate<T>(rng, n);
             auto y = util::generate<T>(rng, n);
 
-            auto m1 = stat_other::boost::r2_score(x, y);
+            auto m1 = stat_other::boost::r2_score(y, x);
             auto m2 = vstat::metrics::r2_score<T>(x.begin(), x.end(), y.begin());
 
             CAPTURE(n);
@@ -96,7 +96,7 @@ namespace util {
             auto y = util::generate<T>(rng, n);
             auto z = util::generate<T>(rng, n);
 
-            auto m1 = stat_other::boost::r2_score(x, y, z);
+            auto m1 = stat_other::boost::r2_score(y, x, z);
             auto m2 = vstat::metrics::r2_score<T>(x.begin(), x.end(), y.begin(), z.begin());
 
             CAPTURE(n);
