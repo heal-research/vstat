@@ -4,6 +4,10 @@
 #ifndef VSTAT_UNIVARIATE_HPP
 #define VSTAT_UNIVARIATE_HPP
 
+#include <limits>
+#include <ostream>
+#include <type_traits>
+
 #include "combine.hpp"
 
 namespace VSTAT_NAMESPACE

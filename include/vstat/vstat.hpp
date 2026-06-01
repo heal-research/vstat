@@ -23,7 +23,7 @@ namespace VSTAT_NAMESPACE
 namespace detail
 {
 // utility method to load data into a wide type
-template<eve::simd_value T, std::input_iterator I, typename F>
+template<eve::simd_value T, std::random_access_iterator I, typename F>
     requires std::is_invocable_v<F, std::iter_value_t<I>>
 auto inline load(I iter, F&& func)
 {
@@ -70,9 +70,9 @@ namespace univariate
     \param last  The end iterator for the first sequence
     \param f     A projection mapping `std::iter_value_t<I>` to a scalar value
 */
-template<std::floating_point T, stats Stats = stats::variance, std::input_iterator I, typename F = std::identity>
+template<std::floating_point T, stats Stats = stats::variance, std::random_access_iterator I, typename F = std::identity>
     requires concepts::arithmetic_projection<F, std::iter_value_t<I>>
-inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F {}) noexcept -> univariate_statistics
+inline auto accumulate(I first, I last, F&& f = F {}) noexcept -> univariate_statistics
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -120,11 +120,11 @@ inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F 
 */
 template<std::floating_point T,
          stats Stats = stats::variance,
-         std::input_iterator I,
-         std::input_iterator J,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
          typename F = std::identity>
     requires concepts::arithmetic_projection<F, std::iter_value_t<I>> and std::is_arithmetic_v<std::iter_value_t<J>>
-inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, F&& f = F {}) noexcept
+inline auto accumulate(I first1, I last1, J first2, F&& f = F {}) noexcept
     -> univariate_statistics
 {
     using wide = eve::wide<T>;
@@ -180,8 +180,8 @@ inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2
 */
 template<std::floating_point T,
          stats Stats = stats::variance,
-         std::input_iterator I,
-         std::input_iterator J,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
          typename BinaryOp,
          typename F1 = std::identity,
          typename F2 = std::identity>
@@ -193,7 +193,7 @@ template<std::floating_point T,
                                         std::invoke_result_t<F1, std::iter_value_t<I>>,
                                         std::invoke_result_t<F2, std::iter_value_t<J>>>
 inline auto accumulate(I first1,
-                       std::sized_sentinel_for<I> auto last1,
+                       I last1,
                        J first2,
                        BinaryOp&& op = BinaryOp {},
                        F1&& f1 = F1 {},
@@ -261,9 +261,9 @@ inline auto accumulate(I first1,
 */
 template<std::floating_point T,
          stats Stats = stats::variance,
-         std::input_iterator I,
-         std::input_iterator J,
-         std::input_iterator K,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
+         std::random_access_iterator K,
          typename BinaryOp,
          typename F1 = std::identity,
          typename F2 = std::identity>
@@ -276,7 +276,7 @@ template<std::floating_point T,
                                        std::invoke_result_t<F1, std::iter_value_t<I>>,
                                        std::invoke_result_t<F2, std::iter_value_t<J>>>
 inline auto accumulate(I first1,
-                       std::sized_sentinel_for<I> auto last1,
+                       I last1,
                        J first2,
                        K first3,
                        BinaryOp&& op = BinaryOp {},
@@ -371,13 +371,13 @@ namespace bivariate
     \endcode
 */
 template<std::floating_point T,
-         std::input_iterator I,
-         std::input_iterator J,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
          typename F1 = std::identity,
          typename F2 = std::identity>
     requires concepts::arithmetic_projection<F1, std::iter_value_t<I>>
     and concepts::arithmetic_projection<F2, std::iter_value_t<J>>
-inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, F1&& f1 = F1 {}, F2&& f2 = F2 {})
+inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1 {}, F2&& f2 = F2 {})
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -411,15 +411,15 @@ inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2
 }
 
 template<std::floating_point T,
-         std::input_iterator I,
-         std::input_iterator J,
-         std::input_iterator K,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
+         std::random_access_iterator K,
          typename F1 = std::identity,
          typename F2 = std::identity>
     requires concepts::arithmetic_projection<F1, std::iter_value_t<I>>
     and concepts::arithmetic_projection<F2, std::iter_value_t<J>> and std::is_arithmetic_v<std::iter_value_t<K>>
 inline auto accumulate(
-    I first1, std::sized_sentinel_for<I> auto last1, J first2, K first3, F1&& f1 = F1 {}, F2&& f2 = F2 {}) noexcept
+    I first1, I last1, J first2, K first3, F1&& f1 = F1 {}, F2&& f2 = F2 {}) noexcept
     -> bivariate_statistics
 {
     using wide = eve::wide<T>;
@@ -478,8 +478,8 @@ namespace metrics
         \text{TSS} &= \sum_{i=1}^n \left( y - \bar{y} \right)^2\\
     \f}
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto r2_score(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -522,8 +522,8 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2) noexce
         \text{TSS} &= \sum_{i=1}^n w_i \left( y - \bar{y} \right)^2\\
     \f}
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto r2_score(I first1, I last1, J first2, K first3) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -566,8 +566,8 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2, K firs
    \left(y-\hat{y}\right)^2}
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_squared_error(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -600,8 +600,8 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
    \sum_{i=1}^n w_i \left(y-\hat{y}\right)^2
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_squared_error(I first1, I last1, J first2, K first3) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -635,8 +635,8 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
    \log_e (1 + \hat{y}_i) )^2
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_squared_log_error(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -669,8 +669,8 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
    (\log_e (1 + y_i) - \log_e (1 + \hat{y}_i) )^2
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_squared_log_error(I first1, I last1, J first2, K first3) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -704,8 +704,8 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
    |y-\hat{y}|}
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_absolute_error(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -738,8 +738,8 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
    \sum_{i=1}^n w_i |y-\hat{y}|
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_absolute_error(I first1, I last1, J first2, K first3) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -777,8 +777,8 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
     where \f$\epsilon\f$ = `std::numeric_limits<T>::epsilon()` is an arbitrarily
    small constant to prevent division by zero.
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_absolute_percentage_error(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -813,8 +813,8 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
    \frac{\sum_{i=1}^n w_i |y-\hat{y}|}{\max(\epsilon, \left| y_i \right|)}
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_absolute_percentage_error(I first1, I last1, J first2, K first3) noexcept
     -> double
 {
     using wide = eve::wide<T>;
@@ -852,8 +852,8 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
     \f] where \f$\ln|\Gamma(y+1)| = \log(y!)\f$ is computed via <a
    href="https://jfalcou.github.io/eve/group__special_gae09a3d5ef50adfebd1d42611611cae5a.html#gae09a3d5ef50adfebd1d42611611cae5a">eve::log_abs_gamma</a>.
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto poisson_neg_likelihood_loss(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -889,8 +889,8 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
     \f] where \f$\ln|\Gamma(y+1)| = \log(y!)\f$ is computed via <a
    href="https://jfalcou.github.io/eve/group__special_gae09a3d5ef50adfebd1d42611611cae5a.html#gae09a3d5ef50adfebd1d42611611cae5a">eve::log_abs_gamma</a>.
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto poisson_neg_likelihood_loss(I first1, I last1, J first2, K first3) noexcept
     -> double
 {
     using wide = eve::wide<T>;
@@ -928,8 +928,8 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
 
     \pre `sigma > 0`. Passing a non-positive value produces `NaN`/`inf` silently.
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto gaussian_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last1, J first2, T sigma) noexcept
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto gaussian_neg_likelihood_loss(I first1, I last1, J first2, T sigma) noexcept
     -> double
 {
     using wide = eve::wide<T>;
@@ -969,8 +969,8 @@ inline auto gaussian_neg_likelihood_loss(I first1, std::sentinel_for<I> auto las
         \sum_i \left[ e^{x_i} - y_i \cdot x_i + \ln(|\Gamma(y_i + 1)|) \right]
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto poisson_log_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto poisson_log_neg_likelihood_loss(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};

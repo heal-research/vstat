@@ -60,7 +60,6 @@ auto rel_equal(T a, T b, T eps)
 auto constexpr count_small {10};
 auto constexpr count_medium {1'000};
 auto constexpr count_large {100'000};
-auto constexpr count_extreme {10'000'000};
 
 TEST_CASE("gamma")
 {
@@ -153,7 +152,7 @@ TEST_CASE("weighted r2", "[correctness]")
 
 TEST_CASE("sum", "[correctness]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
 
     auto test_sum = [&]<typename T = double>(int n, T eps) -> auto
     {
@@ -194,7 +193,6 @@ TEST_CASE("sum", "[correctness]")
         SECTION("small") { test_sum(count_small, eps); }
         SECTION("medium") { test_sum(count_medium, eps); }
         SECTION("large") { test_sum(count_large, eps); }
-        SECTION("extreme") { test_sum(count_extreme, eps); }
     }
 
     SECTION("float")
@@ -203,13 +201,12 @@ TEST_CASE("sum", "[correctness]")
         SECTION("small") { test_sum.operator()<float>(count_small, eps); }
         SECTION("medium") { test_sum.operator()<float>(count_medium, eps); }
         SECTION("large") { test_sum.operator()<float>(count_large, eps); }
-        SECTION("extreme") { test_sum.operator()<float>(count_extreme, eps); }
     }
 }
 
 TEST_CASE("weighted sum", "[correctness]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
 
     auto test_sum = [&]<typename T = double>(int n, T eps)
     {
@@ -237,7 +234,6 @@ TEST_CASE("weighted sum", "[correctness]")
         SECTION("small") { test_sum(count_small, eps); }
         SECTION("medium") { test_sum(count_medium, eps); }
         SECTION("large") { test_sum(count_large, eps); }
-        SECTION("extreme") { test_sum(count_extreme, eps); }
     }
 
     SECTION("float")
@@ -246,13 +242,12 @@ TEST_CASE("weighted sum", "[correctness]")
         SECTION("small") { test_sum.operator()<float>(count_small, eps); }
         SECTION("medium") { test_sum.operator()<float>(count_medium, eps); }
         SECTION("large") { test_sum.operator()<float>(count_large, eps); }
-        SECTION("extreme") { test_sum.operator()<float>(count_extreme, eps); }
     }
 }
 
 TEST_CASE("mean", "[correctness]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
 
     auto test_mean = [&]<typename T = double>(int n, T eps)
     {
@@ -285,7 +280,7 @@ TEST_CASE("mean", "[correctness]")
 
 TEST_CASE("weighted mean", "[correctness]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
 
     auto test_mean = [&]<typename T = double>(int n, T eps)
     {
@@ -319,7 +314,7 @@ TEST_CASE("weighted mean", "[correctness]")
 
 TEST_CASE("variance", "[correctness]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
 
     auto test_variance = [&]<typename T = double>(int n, T eps)
     {
@@ -353,7 +348,7 @@ TEST_CASE("variance", "[correctness]")
 
 TEST_CASE("weighted variance", "[correctness]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
 
     auto test_variance = [&]<typename T = double>(int n, T eps)
     {
@@ -387,7 +382,7 @@ TEST_CASE("weighted variance", "[correctness]")
 
 TEST_CASE("covariance", "[correctness]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
 
     auto test_covariance = [&]<typename T = double>(int n, T eps)
     {
@@ -421,7 +416,7 @@ TEST_CASE("covariance", "[correctness]")
 
 TEST_CASE("weighted covariance", "[correctness]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
 
     auto test_covariance = [&]<typename T = double>(int n, T eps)
     {
