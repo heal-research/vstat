@@ -8,12 +8,14 @@
 #include <functional>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <numbers>
 
 #include <eve/module/math.hpp>
 #include <eve/module/special.hpp>
 
 #include "bivariate.hpp"
+#include "compensated_sum.hpp"
 #include "univariate.hpp"
 
 namespace VSTAT_NAMESPACE
@@ -22,12 +24,21 @@ namespace VSTAT_NAMESPACE
 namespace detail
 {
 // utility method to load data into a wide type
-template<eve::simd_value T, std::input_iterator I, typename F>
+template<eve::simd_value T, std::random_access_iterator I, typename F>
     requires std::is_invocable_v<F, std::iter_value_t<I>>
 auto inline load(I iter, F&& func)
 {
     return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) -> auto
     { return T {std::forward<F>(func)(*(iter + Idx))...}; }(std::make_index_sequence<T::size()> {});
+}
+
+// binary projection overload: applies func(a, b) element-wise across two iterators
+template<eve::simd_value T, std::random_access_iterator I, std::random_access_iterator J, typename F>
+    requires std::is_invocable_v<F, std::iter_value_t<I>, std::iter_value_t<J>>
+auto inline load(I iter1, J iter2, F&& func)
+{
+    return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) -> auto
+    { return T {std::forward<F>(func)(*(iter1 + Idx), *(iter2 + Idx))...}; }(std::make_index_sequence<T::size()> {});
 }
 
 // utility method to advance a set of iterators
@@ -69,9 +80,9 @@ namespace univariate
     \param last  The end iterator for the first sequence
     \param f     A projection mapping `std::iter_value_t<I>` to a scalar value
 */
-template<std::floating_point T, std::input_iterator I, typename F = std::identity>
+template<std::floating_point T, stats Stats = stats::variance, std::random_access_iterator I, typename F = std::identity>
     requires concepts::arithmetic_projection<F, std::iter_value_t<I>>
-inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F {}) noexcept -> univariate_statistics
+inline auto accumulate(I first, I last, F&& f = F {}) noexcept -> univariate_statistics
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -79,14 +90,14 @@ inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F 
     auto const m = n - (n % s);
 
     if (n < s) {
-        univariate_accumulator<T> scalar_acc;
+        univariate_accumulator<T, Stats> scalar_acc;
         for (; first < last; ++first) {
             scalar_acc(std::invoke(std::forward<F>(f), *first));
         }
         return univariate_statistics(scalar_acc);
     }
 
-    univariate_accumulator<wide> acc;
+    univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
         acc(detail::load<wide>(first, std::forward<F>(f)));
         detail::advance(s, first);
@@ -95,7 +106,7 @@ inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F 
     // gather the remaining values with a scalar accumulator
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
         for (; first < last; ++first) {
             scalar_acc(std::invoke(std::forward<F>(f), *first));
         }
@@ -117,9 +128,13 @@ inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F 
     \param first2 The begin iterator for the second (weights) sequence
     \param f      A projection mapping `std::iter_value_t<I>` to a scalar value
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, typename F = std::identity>
+template<std::floating_point T,
+         stats Stats = stats::variance,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
+         typename F = std::identity>
     requires concepts::arithmetic_projection<F, std::iter_value_t<I>> and std::is_arithmetic_v<std::iter_value_t<J>>
-inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, F&& f = F {}) noexcept
+inline auto accumulate(I first1, I last1, J first2, F&& f = F {}) noexcept
     -> univariate_statistics
 {
     using wide = eve::wide<T>;
@@ -128,14 +143,14 @@ inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2
     const size_t m = n - n % s;
 
     if (n < s) {
-        univariate_accumulator<T> scalar_acc;
+        univariate_accumulator<T, Stats> scalar_acc;
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(std::invoke(std::forward<F>(f), *first1), *first2);
         }
         return univariate_statistics(scalar_acc);
     }
 
-    univariate_accumulator<wide> acc;
+    univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
         acc(detail::load<wide>(first1, std::forward<F>(f)), wide {first2});
         detail::advance(s, first1, first2);
@@ -144,7 +159,7 @@ inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2
     // use a scalar accumulator to gather the remaining values
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(std::invoke(std::forward<F>(f), *first1), *first2);
         }
@@ -174,8 +189,9 @@ inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2
     \param f2     A projection mapping `std::iter_value_t<J>` to a scalar value
 */
 template<std::floating_point T,
-         std::input_iterator I,
-         std::input_iterator J,
+         stats Stats = stats::variance,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
          typename BinaryOp,
          typename F1 = std::identity,
          typename F2 = std::identity>
@@ -187,7 +203,7 @@ template<std::floating_point T,
                                         std::invoke_result_t<F1, std::iter_value_t<I>>,
                                         std::invoke_result_t<F2, std::iter_value_t<J>>>
 inline auto accumulate(I first1,
-                       std::sized_sentinel_for<I> auto last1,
+                       I last1,
                        J first2,
                        BinaryOp&& op = BinaryOp {},
                        F1&& f1 = F1 {},
@@ -205,25 +221,23 @@ inline auto accumulate(I first1,
     };
 
     if (n < s) {
-        univariate_accumulator<T> scalar_acc;
+        univariate_accumulator<T, Stats> scalar_acc;
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(f(*first1, *first2));
         }
         return univariate_statistics(scalar_acc);
     }
 
-    std::array<T, s> x;
-    univariate_accumulator<wide> acc;
+    univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
-        std::transform(first1, first1 + s, first2, x.begin(), f);
-        acc(wide {x.data()});
+        acc(detail::load<wide>(first1, first2, f));
         detail::advance(s, first1, first2);
     }
 
     // use a scalar accumulator to gather the remaining values
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(f(*first1, *first2));
         }
@@ -254,9 +268,10 @@ inline auto accumulate(I first1,
     \param f2     A projection mapping `std::iter_value_t<J>` to a scalar value
 */
 template<std::floating_point T,
-         std::input_iterator I,
-         std::input_iterator J,
-         std::input_iterator K,
+         stats Stats = stats::variance,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
+         std::random_access_iterator K,
          typename BinaryOp,
          typename F1 = std::identity,
          typename F2 = std::identity>
@@ -269,7 +284,7 @@ template<std::floating_point T,
                                        std::invoke_result_t<F1, std::iter_value_t<I>>,
                                        std::invoke_result_t<F2, std::iter_value_t<J>>>
 inline auto accumulate(I first1,
-                       std::sized_sentinel_for<I> auto last1,
+                       I last1,
                        J first2,
                        K first3,
                        BinaryOp&& op = BinaryOp {},
@@ -288,25 +303,23 @@ inline auto accumulate(I first1,
     };
 
     if (n < s) {
-        univariate_accumulator<T> scalar_acc;
+        univariate_accumulator<T, Stats> scalar_acc;
         for (; first1 < last1; ++first1, ++first2, ++first3) {
             scalar_acc(f(*first1, *first2), *first3);
         }
         return univariate_statistics(scalar_acc);
     }
 
-    std::array<T, s> x;
-    univariate_accumulator<wide> acc;
+    univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
-        std::transform(first1, first1 + s, first2, x.begin(), f);
-        acc(wide(x), wide(first3, first3 + s));
+        acc(detail::load<wide>(first1, first2, f), wide(first3, first3 + s));
         detail::advance(s, first1, first2, first3);
     }
 
     // use a scalar accumulator to gather the remaining values
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2, ++first3) {
             scalar_acc(f(*first1, *first2), *first3);
         }
@@ -364,13 +377,13 @@ namespace bivariate
     \endcode
 */
 template<std::floating_point T,
-         std::input_iterator I,
-         std::input_iterator J,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
          typename F1 = std::identity,
          typename F2 = std::identity>
     requires concepts::arithmetic_projection<F1, std::iter_value_t<I>>
     and concepts::arithmetic_projection<F2, std::iter_value_t<J>>
-inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, F1&& f1 = F1 {}, F2&& f2 = F2 {})
+inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1 {}, F2&& f2 = F2 {})
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -404,15 +417,15 @@ inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2
 }
 
 template<std::floating_point T,
-         std::input_iterator I,
-         std::input_iterator J,
-         std::input_iterator K,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
+         std::random_access_iterator K,
          typename F1 = std::identity,
          typename F2 = std::identity>
     requires concepts::arithmetic_projection<F1, std::iter_value_t<I>>
     and concepts::arithmetic_projection<F2, std::iter_value_t<J>> and std::is_arithmetic_v<std::iter_value_t<K>>
 inline auto accumulate(
-    I first1, std::sized_sentinel_for<I> auto last1, J first2, K first3, F1&& f1 = F1 {}, F2&& f2 = F2 {}) noexcept
+    I first1, I last1, J first2, K first3, F1&& f1 = F1 {}, F2&& f2 = F2 {}) noexcept
     -> bivariate_statistics
 {
     using wide = eve::wide<T>;
@@ -471,16 +484,16 @@ namespace metrics
         \text{TSS} &= \sum_{i=1}^n \left( y - \bar{y} \right)^2\\
     \f}
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto r2_score(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - (n % s)};
 
-    univariate_accumulator<wide> wx;
-    univariate_accumulator<wide> wy;
+    univariate_accumulator<wide, stats::sum> wx;
+    univariate_accumulator<wide, stats::variance> wy;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -490,8 +503,8 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2) noexce
     }
 
     // use scalar accumulators for the remaining values
-    auto sx = univariate_accumulator<T>::load_state(wx.stats());
-    auto sy = univariate_accumulator<T>::load_state(wy.stats());
+    auto sx = univariate_accumulator<T, stats::sum>::load_state(wx.stats());
+    auto sy = univariate_accumulator<T, stats::variance>::load_state(wy.stats());
 
     for (; first1 < last1; ++first1, ++first2) {
         sx(eve::sqr(*first1 - *first2));
@@ -515,16 +528,16 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2) noexce
         \text{TSS} &= \sum_{i=1}^n w_i \left( y - \bar{y} \right)^2\\
     \f}
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto r2_score(I first1, I last1, J first2, K first3) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - (n % s)};
 
-    univariate_accumulator<wide> wx;
-    univariate_accumulator<wide> wy;
+    univariate_accumulator<wide, stats::sum> wx;
+    univariate_accumulator<wide, stats::variance> wy;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -535,8 +548,8 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2, K firs
     }
 
     // use scalar accumulators for the remaining values
-    auto sx = univariate_accumulator<T>::load_state(wx.stats());
-    auto sy = univariate_accumulator<T>::load_state(wy.stats());
+    auto sx = univariate_accumulator<T, stats::sum>::load_state(wx.stats());
+    auto sy = univariate_accumulator<T, stats::variance>::load_state(wy.stats());
 
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         sx(eve::sqr(*first1 - *first2), *first3);
@@ -559,15 +572,15 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2, K firs
    \left(y-\hat{y}\right)^2}
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_squared_error(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -576,7 +589,7 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::sqr(*first1 - *first2));
     }
@@ -593,15 +606,15 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
    \sum_{i=1}^n w_i \left(y-\hat{y}\right)^2
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_squared_error(I first1, I last1, J first2, K first3) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -611,7 +624,7 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(eve::sqr(*first1 - *first2), *first3);
     }
@@ -628,15 +641,15 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
    \log_e (1 + \hat{y}_i) )^2
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_squared_log_error(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -645,7 +658,7 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::sqr(eve::log1p(*first1) - eve::log1p(*first2)));
     }
@@ -662,15 +675,15 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
    (\log_e (1 + y_i) - \log_e (1 + \hat{y}_i) )^2
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_squared_log_error(I first1, I last1, J first2, K first3) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -680,7 +693,7 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(eve::sqr(eve::log1p(*first1) - eve::log1p(*first2)), *first3);
     }
@@ -697,15 +710,15 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
    |y-\hat{y}|}
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_absolute_error(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -714,7 +727,7 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::abs(*first1 - *first2));
     }
@@ -731,15 +744,15 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
    \sum_{i=1}^n w_i |y-\hat{y}|
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_absolute_error(I first1, I last1, J first2, K first3) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -749,7 +762,7 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(eve::abs(*first1 - *first2), *first3);
     }
@@ -770,8 +783,8 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
     where \f$\epsilon\f$ = `std::numeric_limits<T>::epsilon()` is an arbitrarily
    small constant to prevent division by zero.
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_absolute_percentage_error(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -780,7 +793,7 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
 
     auto constexpr eps {std::numeric_limits<T>::epsilon()};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -789,7 +802,7 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::abs(*first1 - *first2) / eve::max(eps, eve::abs(*first1)));
     }
@@ -806,8 +819,8 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
    \frac{\sum_{i=1}^n w_i |y-\hat{y}|}{\max(\epsilon, \left| y_i \right|)}
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_absolute_percentage_error(I first1, I last1, J first2, K first3) noexcept
     -> double
 {
     using wide = eve::wide<T>;
@@ -817,7 +830,7 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
 
     auto constexpr eps {std::numeric_limits<T>::epsilon()};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -827,7 +840,7 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(eve::abs(*first1 - *first2) / eve::max(eps, eve::abs(*first1)), *first3);
     }
@@ -845,15 +858,15 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
     \f] where \f$\ln|\Gamma(y+1)| = \log(y!)\f$ is computed via <a
    href="https://jfalcou.github.io/eve/group__special_gae09a3d5ef50adfebd1d42611611cae5a.html#gae09a3d5ef50adfebd1d42611611cae5a">eve::log_abs_gamma</a>.
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto poisson_neg_likelihood_loss(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -862,7 +875,7 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::sum>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(*first2 - *first1 * eve::log(*first2) + eve::log_abs_gamma(T {1} + *first1));
     }
@@ -882,8 +895,8 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
     \f] where \f$\ln|\Gamma(y+1)| = \log(y!)\f$ is computed via <a
    href="https://jfalcou.github.io/eve/group__special_gae09a3d5ef50adfebd1d42611611cae5a.html#gae09a3d5ef50adfebd1d42611611cae5a">eve::log_abs_gamma</a>.
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K>
-inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last1, J first2, K first3) noexcept
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto poisson_neg_likelihood_loss(I first1, I last1, J first2, K first3) noexcept
     -> double
 {
     using wide = eve::wide<T>;
@@ -891,16 +904,16 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
-        wide y_pred = eve::mul(wide {std::to_address(first2)}, wide {std::to_address(first3)});
+        wide y_pred = wide {std::to_address(first2)} * wide {std::to_address(first3)};
         we(y_pred - y_true * eve::log(y_pred) + eve::log_abs_gamma(T {1} + y_true));
         detail::advance(s, first1, first2, first3);
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::sum>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(*first2 * *first3 - *first1 * eve::log(*first2 * *first3) + eve::log_abs_gamma(T {1} + *first1));
     }
@@ -921,8 +934,8 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
 
     \pre `sigma > 0`. Passing a non-positive value produces `NaN`/`inf` silently.
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto gaussian_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last1, J first2, T sigma) noexcept
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto gaussian_neg_likelihood_loss(I first1, I last1, J first2, T sigma) noexcept
     -> double
 {
     using wide = eve::wide<T>;
@@ -930,7 +943,7 @@ inline auto gaussian_neg_likelihood_loss(I first1, std::sentinel_for<I> auto las
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -939,7 +952,7 @@ inline auto gaussian_neg_likelihood_loss(I first1, std::sentinel_for<I> auto las
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::sum>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::sqr(*first1 - *first2));
     }
@@ -962,15 +975,15 @@ inline auto gaussian_neg_likelihood_loss(I first1, std::sentinel_for<I> auto las
         \sum_i \left[ e^{x_i} - y_i \cdot x_i + \ln(|\Gamma(y_i + 1)|) \right]
     \f]
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J>
-inline auto poisson_log_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last1, J first2) noexcept -> double
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto poisson_log_neg_likelihood_loss(I first1, I last1, J first2) noexcept -> double
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -979,7 +992,7 @@ inline auto poisson_log_neg_likelihood_loss(I first1, std::sentinel_for<I> auto 
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::sum>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::exp(*first2) - *first1 * *first2 + eve::log_abs_gamma(T {1} + *first1));
     }

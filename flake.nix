@@ -44,15 +44,17 @@
               cppcheck
               gdb
               eve
+              gcc
               doxygen
               valgrind
               pkgs.python3Packages.nanobind
+              perf
             ];
             buildInputs =
               packages.default.buildInputs
               ++ (with pkgs; [
                 boost
-                doctest
+                catch2_3
                 gsl
                 pkg-config
               ])

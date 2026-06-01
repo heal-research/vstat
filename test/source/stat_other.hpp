@@ -16,8 +16,11 @@
 #include <gsl/gsl_statistics_double.h>
 #include <gsl/gsl_statistics_float.h>
 
-// Linasm
+// Linasm — its Types.h #defines size_t as a plain int typedef; bracket the
+// include so the macro never escapes into Catch2 or std headers.
+#pragma push_macro("size_t")
 #include <Statistics.h>
+#pragma pop_macro("size_t")
 
 namespace stat_other {
     template<typename T>
@@ -111,6 +114,20 @@ namespace stat_other {
 
     namespace boost {
         namespace ba = ::boost::accumulators;
+
+        template<typename T>
+        inline auto sum(vec<T> const& x) {
+            ba::accumulator_set<T, ba::stats<ba::tag::sum>> acc;
+            for (auto i = 0; i < std::ssize(x); ++i) { acc(x[i]); }
+            return ba::sum(acc);
+        }
+
+        template<typename T>
+        inline auto sum(vec<T> const& x, vec<T> const& w) {
+            ba::accumulator_set<T, ba::stats<ba::tag::weighted_sum>, T> acc;
+            for (auto i = 0; i < std::ssize(x); ++i) { acc(x[i], ba::weight=w[i]); }
+            return ba::weighted_sum(acc);
+        }
 
         template<typename T>
         inline auto mean(vec<T> const& x) {
