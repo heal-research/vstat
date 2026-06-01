@@ -36,15 +36,7 @@ target_include_directories(
 target_compile_features(vstat_vstat INTERFACE cxx_std_20)
 
 # ---- Dependencies ----
-CPMAddPackage(
-    NAME eve
-    # Pinned past v2023.02.15: that release lacks eve::log_abs_gamma and the
-    # eve::wide contiguous-pointer constructor used by the metrics functions.
-    # Revert to VERSION once a tagged release includes these APIs.
-    GIT_TAG bf1130e0c3b62e47359c11a0811629a1d0cc99ef
-    GITHUB_REPOSITORY jfalcou/eve
-    OPTIONS "EVE_BUILD_TEST OFF"
-)
+find_package(eve REQUIRED)
 target_link_libraries(vstat_vstat INTERFACE eve::eve)
 
 if (NOT VSTAT_NAMESPACE)
