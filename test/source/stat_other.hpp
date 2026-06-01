@@ -16,8 +16,11 @@
 #include <gsl/gsl_statistics_double.h>
 #include <gsl/gsl_statistics_float.h>
 
-// Linasm
+// Linasm — its Types.h #defines size_t as a plain int typedef; bracket the
+// include so the macro never escapes into Catch2 or std headers.
+#pragma push_macro("size_t")
 #include <Statistics.h>
+#pragma pop_macro("size_t")
 
 namespace stat_other {
     template<typename T>

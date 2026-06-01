@@ -137,7 +137,11 @@ struct univariate_statistics
     explicit univariate_statistics(univariate_accumulator<T, Stats> const& accumulator)
     {
         auto [sw, sx, sxx] = accumulator.stats();
-        count = sw;
+        if constexpr (Stats == stats::sum) {
+            count = std::numeric_limits<double>::quiet_NaN();
+        } else {
+            count = sw;
+        }
         sum = sx;
         ssr = sxx;
         if constexpr (Stats != stats::sum) {

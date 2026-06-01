@@ -14,11 +14,7 @@
 #define ANKERL_NANOBENCH_IMPLEMENT
 #include "nanobench.h"
 
-// linasm's Types.h #defines size_t as a plain int typedef, which breaks
-// Catch2's internal static_cast<std::size_t> usage.  Bracket the include so
-// the macro never escapes into Catch2 or std headers.
 #include "stat_other.hpp"
-#undef size_t
 
 namespace nb = ankerl::nanobench;
 
@@ -83,7 +79,7 @@ TEST_CASE("univariate", "[correctness]")
 
 TEST_CASE("r2", "[correctness]")
 {
-    std::default_random_engine rng {1234};
+    std::mt19937 rng {1234};
 
     auto test_r2 = [&]<typename T = double>(int n, T eps)
     {
@@ -118,7 +114,7 @@ TEST_CASE("r2", "[correctness]")
 
 TEST_CASE("weighted r2", "[correctness]")
 {
-    std::default_random_engine rng {1234};
+    std::mt19937 rng {1234};
 
     auto test_r2_weighted = [&]<typename T = double>(int n, T eps)
     {
@@ -454,7 +450,7 @@ TEST_CASE("weighted covariance", "[correctness]")
 
 TEST_CASE("poisson_neg_likelihood_loss", "[correctness]")
 {
-    std::default_random_engine rng {1234};
+    std::mt19937 rng {1234};
 
     auto test_pnll = [&]<typename T = double>(int n, T eps)
     {
@@ -495,7 +491,7 @@ TEST_CASE("poisson_neg_likelihood_loss", "[correctness]")
 
 TEST_CASE("gaussian_neg_likelihood_loss", "[correctness]")
 {
-    std::default_random_engine rng {1234};
+    std::mt19937 rng {1234};
 
     auto test_gnll = [&]<typename T = double>(int n, T eps)
     {
@@ -539,7 +535,7 @@ TEST_CASE("gaussian_neg_likelihood_loss", "[correctness]")
 
 TEST_CASE("poisson_log_neg_likelihood_loss", "[correctness]")
 {
-    std::default_random_engine rng {1234};
+    std::mt19937 rng {1234};
 
     auto test_plnll = [&]<typename T = double>(int n, T eps)
     {
@@ -579,18 +575,17 @@ TEST_CASE("poisson_log_neg_likelihood_loss", "[correctness]")
 
 TEST_CASE("benchmarks", "[performance]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
 
     nb::Bench bench;
-    auto const n {1000};
-    for (auto s = n; s <= 1024 * 1024; s *= 2) {
-        auto xd = test_util::generate<double>(rng, n);
-        auto yd = test_util::generate<double>(rng, n);
-        auto wd = test_util::generate<double>(rng, n);
+    for (auto s = 1000; s <= 1024 * 1024; s *= 2) {
+        auto xd = test_util::generate<double>(rng, s);
+        auto yd = test_util::generate<double>(rng, s);
+        auto wd = test_util::generate<double>(rng, s);
 
-        auto xf = test_util::generate<float>(rng, n);
-        auto yf = test_util::generate<float>(rng, n);
-        auto wf = test_util::generate<float>(rng, n);
+        auto xf = test_util::generate<float>(rng, s);
+        auto yf = test_util::generate<float>(rng, s);
+        auto wf = test_util::generate<float>(rng, s);
 
         double m {0.0};
 
@@ -686,7 +681,7 @@ TEST_CASE("benchmarks", "[performance]")
 
 TEST_CASE("mean float", "[performance]")
 {
-    std::random_device rng {};
+    std::mt19937 rng {1234};
     nb::Bench bench;
     constexpr auto n {1'000'000};
     auto xf = test_util::generate<float>(rng, n);
