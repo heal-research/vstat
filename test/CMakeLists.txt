@@ -12,9 +12,8 @@ endif()
 
 add_executable(vstat_test source/vstat_test.cpp)
 
-
-# ---- Doctest ----
-find_package(doctest REQUIRED)
+# ---- Catch2 ----
+find_package(Catch2 REQUIRED)
 
 # ---- GNU Scientific Library ----
 find_package(GSL REQUIRED)
@@ -31,7 +30,7 @@ else()
         message(FATAL_ERROR "LinAsm dependency could not be found.")
 endif()
 
-target_link_libraries(vstat_test PRIVATE vstat::vstat GSL::gsl doctest::doctest)
+target_link_libraries(vstat_test PRIVATE vstat::vstat GSL::gsl Catch2::Catch2WithMain)
 target_compile_features(vstat_test PRIVATE cxx_std_20)
 
 if(MSVC)
@@ -40,5 +39,5 @@ else()
     target_compile_options(vstat_test PUBLIC "$<$<CONFIG:Release>:-fno-math-errno>")
 endif()
 
-include(doctest)
-doctest_discover_tests(vstat_test)
+include(Catch)
+catch_discover_tests(vstat_test)

@@ -10,14 +10,16 @@
 namespace VSTAT_NAMESPACE
 {
 /*!
-    \brief Bivariate accumulator object
+    \brief Bivariate accumulator object.
+
+    \tparam T Scalar or eve::wide floating-point type.
 */
 template<typename T>
 struct bivariate_accumulator
 {
-    static auto load_state(T sx, T sy, T sw, T sxx, T syy, T sxy) noexcept -> bivariate_accumulator<T>  // NOLINT
+    static auto load_state(T sx, T sy, T sw, T sxx, T syy, T sxy) noexcept -> bivariate_accumulator  // NOLINT
     {
-        bivariate_accumulator<T> acc;
+        bivariate_accumulator acc;
         acc.sum_w = sw;
         acc.sum_w_old = sw;
         acc.sum_x = sx;
@@ -28,16 +30,16 @@ struct bivariate_accumulator
         return acc;
     }
 
-    static auto load_state(std::tuple<T, T, T, T, T, T> state) noexcept -> bivariate_accumulator<T>
+    static auto load_state(std::tuple<T, T, T, T, T, T> state) noexcept -> bivariate_accumulator
     {
         auto [sx, sy, sw, sxx, syy, sxy] = state;
         return load_state(sx, sy, sw, sxx, syy, sxy);
     }
 
-    inline void operator()(T x, T y) noexcept
+    void operator()(T x, T y) noexcept
     {
-        T dx = x * sum_w - sum_x;
-        T dy = y * sum_w - sum_y;
+        T dx = (x * sum_w) - sum_x;
+        T dy = (y * sum_w) - sum_y;
 
         sum_w += 1;
 
@@ -52,10 +54,10 @@ struct bivariate_accumulator
         sum_w_old = sum_w;
     }
 
-    inline void operator()(T x, T y, T w) noexcept  // NOLINT
+    void operator()(T x, T y, T w) noexcept  // NOLINT
     {
-        T dx = x * sum_w - sum_x;
-        T dy = y * sum_w - sum_y;
+        T dx = (x * sum_w) - sum_x;
+        T dy = (y * sum_w) - sum_y;
 
         sum_x += x * w;
         sum_y += y * w;
@@ -84,7 +86,7 @@ struct bivariate_accumulator
     }
 
     // performs a reduction on the vector types and returns the sums and the squared residuals sums
-    auto stats() const noexcept -> std::tuple<double, double, double, double, double, double>
+    [[nodiscard]] auto stats() const noexcept -> std::tuple<double, double, double, double, double, double>
     {
         if constexpr (std::is_floating_point_v<T>) {
             return {sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy};
@@ -95,13 +97,10 @@ struct bivariate_accumulator
     }
 
   private:
-    // sum of weights
     T sum_w {0};
     T sum_w_old {1};
-    // means
     T sum_x {0};
     T sum_y {0};
-    // squared residuals
     T sum_xx {0};
     T sum_yy {0};
     T sum_xy {0};

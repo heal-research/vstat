@@ -113,6 +113,20 @@ namespace stat_other {
         namespace ba = ::boost::accumulators;
 
         template<typename T>
+        inline auto sum(vec<T> const& x) {
+            ba::accumulator_set<T, ba::stats<ba::tag::sum>> acc;
+            for (auto i = 0; i < std::ssize(x); ++i) { acc(x[i]); }
+            return ba::sum(acc);
+        }
+
+        template<typename T>
+        inline auto sum(vec<T> const& x, vec<T> const& w) {
+            ba::accumulator_set<T, ba::stats<ba::tag::weighted_sum>, T> acc;
+            for (auto i = 0; i < std::ssize(x); ++i) { acc(x[i], ba::weight=w[i]); }
+            return ba::weighted_sum(acc);
+        }
+
+        template<typename T>
         inline auto mean(vec<T> const& x) {
             ba::accumulator_set<T, ba::stats<ba::tag::mean>> acc;
             for (auto i = 0; i < std::ssize(x); ++i) { acc(x[i]); }

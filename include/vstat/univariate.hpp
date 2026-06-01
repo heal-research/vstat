@@ -8,15 +8,32 @@
 
 namespace VSTAT_NAMESPACE
 {
+
 /*!
-    \brief Univariate accumulator object
+    \brief Controls which statistics the accumulator computes.
+
+    Each level implies all levels below it (variance ⊃ mean ⊃ sum).
+    Requesting a lower level skips the unnecessary work:
+      - sum:      only tracks the weighted sum (no count, no Welford SSR)
+      - mean:     tracks sum + count (no Welford SSR)
+      - variance: full Welford update — sum, count, SSR
 */
-template<typename T>
+enum class stats { sum, mean, variance };
+
+/*!
+    \brief Univariate accumulator object.
+
+    \tparam T     Scalar or eve::wide floating-point type.
+    \tparam Stats Which statistics to compute (default: variance).
+                  variance ⊃ mean ⊃ sum — requesting a lower level skips the
+                  Welford SSR update and, for stats::sum, the weight counter.
+*/
+template<typename T, stats Stats = stats::variance>
 struct univariate_accumulator
 {
-    static auto load_state(T sw, T sx, T sxx) noexcept -> univariate_accumulator<T>
+    static auto load_state(T sw, T sx, T sxx) noexcept -> univariate_accumulator
     {
-        univariate_accumulator<T> acc;
+        univariate_accumulator acc;
         acc.sum_w = sw;
         acc.sum_w_old = sw;
         acc.sum_x = sx;
@@ -24,7 +41,7 @@ struct univariate_accumulator
         return acc;
     }
 
-    static auto load_state(std::tuple<T, T, T> state) noexcept -> univariate_accumulator<T>
+    static auto load_state(std::tuple<T, T, T> state) noexcept -> univariate_accumulator
     {
         auto [sw, sx, sxx] = state;
         return load_state(sw, sx, sxx);
@@ -32,21 +49,35 @@ struct univariate_accumulator
 
     void operator()(T x) noexcept
     {
-        T dx = (sum_w * x) - sum_x;
-        sum_x += x;
-        sum_w += 1;
-        sum_xx += (dx * dx) / (sum_w * sum_w_old);
-        sum_w_old = sum_w;
+        if constexpr (Stats == stats::variance) {
+            T dx = (sum_w * x) - sum_x;
+            sum_x += x;
+            sum_w += 1;
+            sum_xx += (dx * dx) / (sum_w * sum_w_old);
+            sum_w_old = sum_w;
+        } else if constexpr (Stats == stats::mean) {
+            sum_x += x;
+            sum_w += 1;
+        } else {
+            sum_x += x;
+        }
     }
 
     void operator()(T x, T w) noexcept
     {
-        x *= w;
-        T dx = (sum_w * x) - (sum_x * w);
-        sum_x += x;
-        sum_w += w;
-        sum_xx += (dx * dx) / (w * sum_w * sum_w_old);
-        sum_w_old = sum_w;
+        if constexpr (Stats == stats::variance) {
+            x *= w;
+            T dx = (sum_w * x) - (sum_x * w);
+            sum_x += x;
+            sum_w += w;
+            sum_xx += (dx * dx) / (w * sum_w * sum_w_old);
+            sum_w_old = sum_w;
+        } else if constexpr (Stats == stats::mean) {
+            sum_x += x * w;
+            sum_w += w;
+        } else {
+            sum_x += x * w;
+        }
     }
 
     template<typename U>
@@ -63,13 +94,16 @@ struct univariate_accumulator
         (*this)(T {x}, T {w});
     }
 
-    // performs the reductions and returns { sum_w, sum_x, sum_xx }
+    // Returns { sum_w, sum_x, sum_xx }.
+    // Fields not tracked by Stats are 0: sum_w when Stats==sum, sum_xx when Stats!=variance.
     [[nodiscard]] auto stats() const noexcept -> std::tuple<double, double, double>
     {
         if constexpr (std::is_floating_point_v<T>) {
             return {sum_w, sum_x, sum_xx};
-        } else {
+        } else if constexpr (Stats == stats::variance) {
             return {eve::reduce(sum_w), eve::reduce(sum_x), combine(sum_w, sum_x, sum_xx)};
+        } else {
+            return {eve::reduce(sum_w), eve::reduce(sum_x), 0.0};
         }
     }
 
@@ -92,16 +126,25 @@ struct univariate_statistics
     double variance;
     double sample_variance;
 
-    template<typename T>
-    explicit univariate_statistics(T const& accumulator)
+    template<typename T, stats Stats>
+    explicit univariate_statistics(univariate_accumulator<T, Stats> const& accumulator)
     {
         auto [sw, sx, sxx] = accumulator.stats();
         count = sw;
         sum = sx;
         ssr = sxx;
-        mean = sx / sw;
-        variance = sxx / sw;
-        sample_variance = sxx / (sw - 1);
+        if constexpr (Stats != stats::sum) {
+            mean = sx / sw;
+        } else {
+            mean = std::numeric_limits<double>::quiet_NaN();
+        }
+        if constexpr (Stats == stats::variance) {
+            variance = sxx / sw;
+            sample_variance = sxx / (sw - 1);
+        } else {
+            variance = std::numeric_limits<double>::quiet_NaN();
+            sample_variance = std::numeric_limits<double>::quiet_NaN();
+        }
     }
 };
 
