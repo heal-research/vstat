@@ -65,7 +65,7 @@ namespace util {
             auto y = util::generate<T>(rng, n);
 
             auto m1 = stat_other::boost::r2_score(y, x);
-            auto m2 = vstat::metrics::r2_score<T>(x.begin(), x.end(), y.begin());
+            auto m2 = vstat::metrics::r2_score<T>(x.data(), x.data() + n, y.data());
 
             CAPTURE(n);
             CAPTURE(m1);
@@ -97,7 +97,7 @@ namespace util {
             auto z = util::generate<T>(rng, n);
 
             auto m1 = stat_other::boost::r2_score(y, x, z);
-            auto m2 = vstat::metrics::r2_score<T>(x.begin(), x.end(), y.begin(), z.begin());
+            auto m2 = vstat::metrics::r2_score<T>(x.data(), x.data() + n, y.data(), z.data());
 
             CAPTURE(n);
             CAPTURE(m1);
@@ -127,7 +127,7 @@ namespace util {
             auto x = util::generate<T>(rng, n);
 
             auto m1 = stat_other::boost::mean(x);
-            auto m2 = uv::accumulate<T>(x.begin(), x.end()).mean;
+            auto m2 = uv::accumulate<T>(x.data(), x.data() + n).mean;
 
             CAPTURE(m1);
             CAPTURE(m2);
@@ -157,7 +157,7 @@ namespace util {
             auto w = util::generate<T>(rng, n);
 
             auto m1 = stat_other::boost::mean(x, w);
-            auto m2 = uv::accumulate<T>(x.begin(), x.end(), w.begin()).mean;
+            auto m2 = uv::accumulate<T>(x.data(), x.data() + n, w.data()).mean;
 
             CAPTURE(m1);
             CAPTURE(m2);
@@ -187,7 +187,7 @@ namespace util {
             auto y = util::generate<T>(rng, n);
 
             auto m1 = stat_other::boost::variance(x, y);
-            auto m2 = uv::accumulate<T>(x.begin(), x.end(), y.begin()).variance;
+            auto m2 = uv::accumulate<T>(x.data(), x.data() + n, y.data()).variance;
 
             CAPTURE(m1);
             CAPTURE(m2);
@@ -217,7 +217,7 @@ namespace util {
             auto w = util::generate<T>(rng, n);
 
             auto m1 = stat_other::boost::variance(x, w);
-            auto m2 = uv::accumulate<T>(x.begin(), x.end(), w.begin()).variance;
+            auto m2 = uv::accumulate<T>(x.data(), x.data() + n, w.data()).variance;
 
             CAPTURE(m1);
             CAPTURE(m2);
@@ -247,7 +247,7 @@ namespace util {
             auto y = util::generate<T>(rng, n);
 
             auto m1 = stat_other::boost::covariance(x, y);
-            auto m2 = bv::accumulate<T>(x.begin(), x.end(), y.begin()).covariance;
+            auto m2 = bv::accumulate<T>(x.data(), x.data() + n, y.data()).covariance;
 
             CAPTURE(m1);
             CAPTURE(m2);
@@ -278,7 +278,7 @@ namespace util {
             auto w = util::generate<T>(rng, n);
 
             auto m1 = stat_other::boost::covariance(x, y, w);
-            auto m2 = bv::accumulate<T>(x.begin(), x.end(), y.begin(), w.begin()).covariance;
+            auto m2 = bv::accumulate<T>(x.data(), x.data() + n, y.data(), w.data()).covariance;
 
             CAPTURE(m1);
             CAPTURE(m2);
@@ -300,6 +300,110 @@ namespace util {
         }
     }
 
+    TEST_CASE("poisson_neg_likelihood_loss" * dt::test_suite("[correctness]")) {
+        std::default_random_engine rng{1234};
+
+        auto test_pnll = [&]<typename T = double>(int n, T eps) {
+            // y_pred must be positive; use [1, 2] to keep log well-defined
+            auto y_true = util::generate<T>(rng, n, T{0}, T{4});
+            auto y_pred = util::generate<T>(rng, n, T{1}, T{2});
+
+            double ref{0};
+            for (int i = 0; i < n; ++i)
+                ref += static_cast<double>(y_pred[i])
+                       - static_cast<double>(y_true[i]) * std::log(static_cast<double>(y_pred[i]))
+                       + std::lgamma(1.0 + static_cast<double>(y_true[i]));
+
+            double m2 = vstat::metrics::poisson_neg_likelihood_loss<T>(y_true.data(), y_true.data() + n, y_pred.data());
+
+            CAPTURE(n); CAPTURE(ref); CAPTURE(m2);
+            REQUIRE(std::abs(ref - m2) < eps * std::max({std::abs(ref), std::abs(m2), 1.0}));
+        };
+
+        SUBCASE("double") {
+            double const eps{1e-10};
+            SUBCASE("small")  { test_pnll(count_small, eps); }
+            SUBCASE("medium") { test_pnll(count_medium, eps); }
+            SUBCASE("large")  { test_pnll(count_large, eps); }
+        }
+        SUBCASE("float") {
+            double const eps{1e-3};
+            SUBCASE("small")  { test_pnll.operator()<float>(count_small, eps); }
+            SUBCASE("medium") { test_pnll.operator()<float>(count_medium, eps); }
+            SUBCASE("large")  { test_pnll.operator()<float>(count_large, eps); }
+        }
+    }
+
+    TEST_CASE("gaussian_neg_likelihood_loss" * dt::test_suite("[correctness]")) {
+        std::default_random_engine rng{1234};
+
+        auto test_gnll = [&]<typename T = double>(int n, T eps) {
+            auto y_true = util::generate<T>(rng, n);
+            auto y_pred = util::generate<T>(rng, n);
+            T const sigma{0.5};
+
+            double ssr{0};
+            for (int i = 0; i < n; ++i) {
+                double d = static_cast<double>(y_true[i]) - static_cast<double>(y_pred[i]);
+                ssr += d * d;
+            }
+            double ref = 0.5 * n * std::log(2.0 * std::numbers::pi_v<double>)
+                         + n * std::log(static_cast<double>(sigma))
+                         + ssr / (2.0 * static_cast<double>(sigma) * static_cast<double>(sigma));
+
+            double m2 = vstat::metrics::gaussian_neg_likelihood_loss<T>(y_true.data(), y_true.data() + n, y_pred.data(), sigma);
+
+            CAPTURE(n); CAPTURE(ref); CAPTURE(m2);
+            REQUIRE(std::abs(ref - m2) < eps * std::max({std::abs(ref), std::abs(m2), 1.0}));
+        };
+
+        SUBCASE("double") {
+            double const eps{1e-10};
+            SUBCASE("small")  { test_gnll(count_small, eps); }
+            SUBCASE("medium") { test_gnll(count_medium, eps); }
+            SUBCASE("large")  { test_gnll(count_large, eps); }
+        }
+        SUBCASE("float") {
+            double const eps{1e-3};
+            SUBCASE("small")  { test_gnll.operator()<float>(count_small, eps); }
+            SUBCASE("medium") { test_gnll.operator()<float>(count_medium, eps); }
+            SUBCASE("large")  { test_gnll.operator()<float>(count_large, eps); }
+        }
+    }
+
+    TEST_CASE("poisson_log_neg_likelihood_loss" * dt::test_suite("[correctness]")) {
+        std::default_random_engine rng{1234};
+
+        auto test_plnll = [&]<typename T = double>(int n, T eps) {
+            auto y_true = util::generate<T>(rng, n, T{0}, T{4});
+            auto x_pred = util::generate<T>(rng, n, T{-1}, T{1});
+
+            double ref{0};
+            for (int i = 0; i < n; ++i)
+                ref += std::exp(static_cast<double>(x_pred[i]))
+                       - static_cast<double>(y_true[i]) * static_cast<double>(x_pred[i])
+                       + std::lgamma(1.0 + static_cast<double>(y_true[i]));
+
+            double m2 = vstat::metrics::poisson_log_neg_likelihood_loss<T>(y_true.data(), y_true.data() + n, x_pred.data());
+
+            CAPTURE(n); CAPTURE(ref); CAPTURE(m2);
+            REQUIRE(std::abs(ref - m2) < eps * std::max({std::abs(ref), std::abs(m2), 1.0}));
+        };
+
+        SUBCASE("double") {
+            double const eps{1e-10};
+            SUBCASE("small")  { test_plnll(count_small, eps); }
+            SUBCASE("medium") { test_plnll(count_medium, eps); }
+            SUBCASE("large")  { test_plnll(count_large, eps); }
+        }
+        SUBCASE("float") {
+            double const eps{1e-3};
+            SUBCASE("small")  { test_plnll.operator()<float>(count_small, eps); }
+            SUBCASE("medium") { test_plnll.operator()<float>(count_medium, eps); }
+            SUBCASE("large")  { test_plnll.operator()<float>(count_large, eps); }
+        }
+    }
+
     TEST_CASE("benchmarks" * dt::test_suite("[performance]")) {
         std::random_device rng{};
 
@@ -318,27 +422,27 @@ namespace util {
             double m{0.0};
 
             bench.batch(s).run("vstat;mean;double", [&]() {
-                m += uv::accumulate<double>(xd.begin(), xd.end()).mean;
+                m += uv::accumulate<double>(xd.data(), xd.data() + n).mean;
             });
 
             bench.batch(s).run("vstat;weighted mean;double", [&]() {
-                m += uv::accumulate<double>(xd.begin(), xd.end(), wd.begin()).mean;
+                m += uv::accumulate<double>(xd.data(), xd.data() + n, wd.data()).mean;
             });
 
             bench.batch(s).run("vstat;variance;double", [&]() {
-                m += uv::accumulate<double>(xd.begin(), xd.end()).variance;
+                m += uv::accumulate<double>(xd.data(), xd.data() + n).variance;
             });
 
             bench.batch(s).run("vstat;weighted variance;double", [&]() {
-                m += uv::accumulate<double>(xd.begin(), xd.end(), wd.begin()).variance;
+                m += uv::accumulate<double>(xd.data(), xd.data() + n, wd.data()).variance;
             });
 
             bench.batch(s).run("vstat;covariance;double", [&]() {
-                m += bv::accumulate<double>(xd.begin(), xd.end(), yd.begin()).covariance;
+                m += bv::accumulate<double>(xd.data(), xd.data() + n, yd.data()).covariance;
             });
 
             bench.batch(s).run("vstat;weighted covariance;double", [&]() {
-                m += bv::accumulate<double>(xd.begin(), xd.end(), yd.begin(), wd.begin()).covariance;
+                m += bv::accumulate<double>(xd.data(), xd.data() + n, yd.data(), wd.data()).covariance;
             });
 
             bench.batch(s).run("boost.accu;mean;double", [&]() {
@@ -402,27 +506,27 @@ namespace util {
             });
 
             bench.batch(s).run("vstat;mean;float", [&]() {
-                m += uv::accumulate<float>(xf.begin(), xf.end()).mean;
+                m += uv::accumulate<float>(xf.data(), xf.data() + n).mean;
             });
 
             bench.batch(s).run("vstat;weighted mean;float", [&]() {
-                m += uv::accumulate<float>(xf.begin(), xf.end(), wf.begin()).mean;
+                m += uv::accumulate<float>(xf.data(), xf.data() + n, wf.data()).mean;
             });
 
             bench.batch(s).run("vstat;variance;float", [&]() {
-                m += uv::accumulate<float>(xf.begin(), xf.end()).variance;
+                m += uv::accumulate<float>(xf.data(), xf.data() + n).variance;
             });
 
             bench.batch(s).run("vstat;weighted variance;float", [&]() {
-                m += uv::accumulate<float>(xf.begin(), xf.end(), wf.begin()).variance;
+                m += uv::accumulate<float>(xf.data(), xf.data() + n, wf.data()).variance;
             });
 
             bench.batch(s).run("vstat;covariance;float", [&]() {
-                m += bv::accumulate<float>(xf.begin(), xf.end(), yf.begin()).covariance;
+                m += bv::accumulate<float>(xf.data(), xf.data() + n, yf.data()).covariance;
             });
 
             bench.batch(s).run("vstat;weighted covariance;float", [&]() {
-                m += bv::accumulate<float>(xf.begin(), xf.end(), yf.begin(), wf.begin()).covariance;
+                m += bv::accumulate<float>(xf.data(), xf.data() + n, yf.data(), wf.data()).covariance;
             });
 
             bench.batch(s).run("boost.accu;mean;float", [&]() {

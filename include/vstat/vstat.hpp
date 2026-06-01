@@ -8,6 +8,7 @@
 #include <functional>
 #include <iterator>
 #include <limits>
+#include <numbers>
 
 #include <eve/module/math.hpp>
 #include <eve/module/special.hpp>
