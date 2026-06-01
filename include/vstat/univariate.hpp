@@ -6,12 +6,14 @@
 
 #include "combine.hpp"
 
-namespace VSTAT_NAMESPACE {
+namespace VSTAT_NAMESPACE
+{
 /*!
     \brief Univariate accumulator object
 */
-template <typename T>
-struct univariate_accumulator {
+template<typename T>
+struct univariate_accumulator
+{
     static auto load_state(T sw, T sx, T sxx) noexcept -> univariate_accumulator<T>
     {
         univariate_accumulator<T> acc;
@@ -28,60 +30,61 @@ struct univariate_accumulator {
         return load_state(sw, sx, sxx);
     }
 
-    inline void operator()(T x) noexcept
+    void operator()(T x) noexcept
     {
-        T dx = sum_w * x - sum_x;
+        T dx = (sum_w * x) - sum_x;
         sum_x += x;
         sum_w += 1;
-        sum_xx += dx * dx / (sum_w * sum_w_old);
+        sum_xx += (dx * dx) / (sum_w * sum_w_old);
         sum_w_old = sum_w;
     }
 
-    inline void operator()(T x, T w) noexcept
+    void operator()(T x, T w) noexcept
     {
         x *= w;
-        T dx = sum_w * x - sum_x * w;
+        T dx = (sum_w * x) - (sum_x * w);
         sum_x += x;
         sum_w += w;
-        sum_xx += dx * dx / (w * sum_w * sum_w_old);
+        sum_xx += (dx * dx) / (w * sum_w * sum_w_old);
         sum_w_old = sum_w;
     }
 
     template<typename U>
-    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
-    inline void operator()(U const* x) noexcept
+        requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
+    void operator()(U const* x) noexcept
     {
-        (*this)(T{x});
+        (*this)(T {x});
     }
 
     template<typename U>
-    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
-    inline void operator()(U const* x, U const* w) noexcept
+        requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
+    void operator()(U const* x, U const* w) noexcept
     {
-        (*this)(T{x}, T{w});
+        (*this)(T {x}, T {w});
     }
 
     // performs the reductions and returns { sum_w, sum_x, sum_xx }
     [[nodiscard]] auto stats() const noexcept -> std::tuple<double, double, double>
     {
         if constexpr (std::is_floating_point_v<T>) {
-            return { sum_w, sum_x, sum_xx };
+            return {sum_w, sum_x, sum_xx};
         } else {
-            return { eve::reduce(sum_w), eve::reduce(sum_x), combine(sum_w, sum_x, sum_xx) };
+            return {eve::reduce(sum_w), eve::reduce(sum_x), combine(sum_w, sum_x, sum_xx)};
         }
     }
 
-private:
-    T sum_w{0};
-    T sum_w_old{1};
-    T sum_x{0};
-    T sum_xx{0};
+  private:
+    T sum_w {0};
+    T sum_w_old {1};
+    T sum_x {0};
+    T sum_xx {0};
 };
 
 /*!
     \brief Univariate statistics
 */
-struct univariate_statistics {
+struct univariate_statistics
+{
     double count;
     double sum;
     double ssr;
@@ -89,7 +92,7 @@ struct univariate_statistics {
     double variance;
     double sample_variance;
 
-    template <typename T>
+    template<typename T>
     explicit univariate_statistics(T const& accumulator)
     {
         auto [sw, sx, sxx] = accumulator.stats();
@@ -104,16 +107,12 @@ struct univariate_statistics {
 
 inline auto operator<<(std::ostream& os, univariate_statistics const& stats) -> std::ostream&
 {
-    os << "count:          \t" << stats.count
-       << "\nsum:            \t" << stats.sum
-       << "\nssr:            \t" << stats.ssr
-       << "\nmean:           \t" << stats.mean
-       << "\nvariance:       \t" << stats.variance
-       << "\nsample variance:\t" << stats.sample_variance
-       << "\n";
+    os << "count:          \t" << stats.count << "\nsum:            \t" << stats.sum << "\nssr:            \t"
+       << stats.ssr << "\nmean:           \t" << stats.mean << "\nvariance:       \t" << stats.variance
+       << "\nsample variance:\t" << stats.sample_variance << "\n";
     return os;
 }
 
-} // namespace VSTAT_NAMESPACE
+}  // namespace VSTAT_NAMESPACE
 
 #endif
