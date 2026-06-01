@@ -38,7 +38,8 @@ target_compile_features(vstat_vstat INTERFACE cxx_std_20)
 # ---- Dependencies ----
 CPMAddPackage(
     NAME eve
-    VERSION 2023.02.15
+    #VERSION 2023.02.15
+    GIT_TAG bf1130e0c3b62e47359c11a0811629a1d0cc99ef
     GITHUB_REPOSITORY jfalcou/eve
     OPTIONS "EVE_BUILD_TEST OFF"
 )

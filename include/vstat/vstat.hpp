@@ -14,6 +14,7 @@
 #include <eve/module/special.hpp>
 
 #include "bivariate.hpp"
+#include "compensated_sum.hpp"
 #include "univariate.hpp"
 
 namespace VSTAT_NAMESPACE
@@ -69,7 +70,7 @@ namespace univariate
     \param last  The end iterator for the first sequence
     \param f     A projection mapping `std::iter_value_t<I>` to a scalar value
 */
-template<std::floating_point T, std::input_iterator I, typename F = std::identity>
+template<std::floating_point T, stats Stats = stats::variance, std::input_iterator I, typename F = std::identity>
     requires concepts::arithmetic_projection<F, std::iter_value_t<I>>
 inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F {}) noexcept -> univariate_statistics
 {
@@ -79,14 +80,14 @@ inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F 
     auto const m = n - (n % s);
 
     if (n < s) {
-        univariate_accumulator<T> scalar_acc;
+        univariate_accumulator<T, Stats> scalar_acc;
         for (; first < last; ++first) {
             scalar_acc(std::invoke(std::forward<F>(f), *first));
         }
         return univariate_statistics(scalar_acc);
     }
 
-    univariate_accumulator<wide> acc;
+    univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
         acc(detail::load<wide>(first, std::forward<F>(f)));
         detail::advance(s, first);
@@ -95,7 +96,7 @@ inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F 
     // gather the remaining values with a scalar accumulator
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
         for (; first < last; ++first) {
             scalar_acc(std::invoke(std::forward<F>(f), *first));
         }
@@ -117,7 +118,11 @@ inline auto accumulate(I first, std::sized_sentinel_for<I> auto last, F&& f = F 
     \param first2 The begin iterator for the second (weights) sequence
     \param f      A projection mapping `std::iter_value_t<I>` to a scalar value
 */
-template<std::floating_point T, std::input_iterator I, std::input_iterator J, typename F = std::identity>
+template<std::floating_point T,
+         stats Stats = stats::variance,
+         std::input_iterator I,
+         std::input_iterator J,
+         typename F = std::identity>
     requires concepts::arithmetic_projection<F, std::iter_value_t<I>> and std::is_arithmetic_v<std::iter_value_t<J>>
 inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2, F&& f = F {}) noexcept
     -> univariate_statistics
@@ -128,14 +133,14 @@ inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2
     const size_t m = n - n % s;
 
     if (n < s) {
-        univariate_accumulator<T> scalar_acc;
+        univariate_accumulator<T, Stats> scalar_acc;
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(std::invoke(std::forward<F>(f), *first1), *first2);
         }
         return univariate_statistics(scalar_acc);
     }
 
-    univariate_accumulator<wide> acc;
+    univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
         acc(detail::load<wide>(first1, std::forward<F>(f)), wide {first2});
         detail::advance(s, first1, first2);
@@ -144,7 +149,7 @@ inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2
     // use a scalar accumulator to gather the remaining values
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(std::invoke(std::forward<F>(f), *first1), *first2);
         }
@@ -174,6 +179,7 @@ inline auto accumulate(I first1, std::sized_sentinel_for<I> auto last1, J first2
     \param f2     A projection mapping `std::iter_value_t<J>` to a scalar value
 */
 template<std::floating_point T,
+         stats Stats = stats::variance,
          std::input_iterator I,
          std::input_iterator J,
          typename BinaryOp,
@@ -205,7 +211,7 @@ inline auto accumulate(I first1,
     };
 
     if (n < s) {
-        univariate_accumulator<T> scalar_acc;
+        univariate_accumulator<T, Stats> scalar_acc;
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(f(*first1, *first2));
         }
@@ -213,7 +219,7 @@ inline auto accumulate(I first1,
     }
 
     std::array<T, s> x;
-    univariate_accumulator<wide> acc;
+    univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
         std::transform(first1, first1 + s, first2, x.begin(), f);
         acc(wide {x.data()});
@@ -223,7 +229,7 @@ inline auto accumulate(I first1,
     // use a scalar accumulator to gather the remaining values
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2) {
             scalar_acc(f(*first1, *first2));
         }
@@ -254,6 +260,7 @@ inline auto accumulate(I first1,
     \param f2     A projection mapping `std::iter_value_t<J>` to a scalar value
 */
 template<std::floating_point T,
+         stats Stats = stats::variance,
          std::input_iterator I,
          std::input_iterator J,
          std::input_iterator K,
@@ -288,7 +295,7 @@ inline auto accumulate(I first1,
     };
 
     if (n < s) {
-        univariate_accumulator<T> scalar_acc;
+        univariate_accumulator<T, Stats> scalar_acc;
         for (; first1 < last1; ++first1, ++first2, ++first3) {
             scalar_acc(f(*first1, *first2), *first3);
         }
@@ -296,7 +303,7 @@ inline auto accumulate(I first1,
     }
 
     std::array<T, s> x;
-    univariate_accumulator<wide> acc;
+    univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
         std::transform(first1, first1 + s, first2, x.begin(), f);
         acc(wide(x), wide(first3, first3 + s));
@@ -306,7 +313,7 @@ inline auto accumulate(I first1,
     // use a scalar accumulator to gather the remaining values
     if (m < n) {
         auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T>::load_state(sw, sx, sxx);
+        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
         for (; first1 < last1; ++first1, ++first2, ++first3) {
             scalar_acc(f(*first1, *first2), *first3);
         }
@@ -479,8 +486,8 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2) noexce
     auto const n {std::distance(first1, last1)};
     auto const m {n - (n % s)};
 
-    univariate_accumulator<wide> wx;
-    univariate_accumulator<wide> wy;
+    univariate_accumulator<wide, stats::sum> wx;
+    univariate_accumulator<wide, stats::variance> wy;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -490,8 +497,8 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2) noexce
     }
 
     // use scalar accumulators for the remaining values
-    auto sx = univariate_accumulator<T>::load_state(wx.stats());
-    auto sy = univariate_accumulator<T>::load_state(wy.stats());
+    auto sx = univariate_accumulator<T, stats::sum>::load_state(wx.stats());
+    auto sy = univariate_accumulator<T, stats::variance>::load_state(wy.stats());
 
     for (; first1 < last1; ++first1, ++first2) {
         sx(eve::sqr(*first1 - *first2));
@@ -523,8 +530,8 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2, K firs
     auto const n {std::distance(first1, last1)};
     auto const m {n - (n % s)};
 
-    univariate_accumulator<wide> wx;
-    univariate_accumulator<wide> wy;
+    univariate_accumulator<wide, stats::sum> wx;
+    univariate_accumulator<wide, stats::variance> wy;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -535,8 +542,8 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2, K firs
     }
 
     // use scalar accumulators for the remaining values
-    auto sx = univariate_accumulator<T>::load_state(wx.stats());
-    auto sy = univariate_accumulator<T>::load_state(wy.stats());
+    auto sx = univariate_accumulator<T, stats::sum>::load_state(wx.stats());
+    auto sy = univariate_accumulator<T, stats::variance>::load_state(wy.stats());
 
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         sx(eve::sqr(*first1 - *first2), *first3);
@@ -567,7 +574,7 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -576,7 +583,7 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::sqr(*first1 - *first2));
     }
@@ -601,7 +608,7 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -611,7 +618,7 @@ inline auto mean_squared_error(I first1, std::sentinel_for<I> auto last1, J firs
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(eve::sqr(*first1 - *first2), *first3);
     }
@@ -636,7 +643,7 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -645,7 +652,7 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::sqr(eve::log1p(*first1) - eve::log1p(*first2)));
     }
@@ -670,7 +677,7 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -680,7 +687,7 @@ inline auto mean_squared_log_error(I first1, std::sentinel_for<I> auto last1, J 
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(eve::sqr(eve::log1p(*first1) - eve::log1p(*first2)), *first3);
     }
@@ -705,7 +712,7 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -714,7 +721,7 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::abs(*first1 - *first2));
     }
@@ -739,7 +746,7 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -749,7 +756,7 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(eve::abs(*first1 - *first2), *first3);
     }
@@ -780,7 +787,7 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
 
     auto constexpr eps {std::numeric_limits<T>::epsilon()};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -789,7 +796,7 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::abs(*first1 - *first2) / eve::max(eps, eve::abs(*first1)));
     }
@@ -817,7 +824,7 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
 
     auto constexpr eps {std::numeric_limits<T>::epsilon()};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -827,7 +834,7 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(eve::abs(*first1 - *first2) / eve::max(eps, eve::abs(*first1)), *first3);
     }
@@ -853,7 +860,7 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -862,7 +869,7 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::sum>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(*first2 - *first1 * eve::log(*first2) + eve::log_abs_gamma(T {1} + *first1));
     }
@@ -891,7 +898,7 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred = eve::mul(wide {std::to_address(first2)}, wide {std::to_address(first3)});
@@ -900,7 +907,7 @@ inline auto poisson_neg_likelihood_loss(I first1, std::sentinel_for<I> auto last
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::sum>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
         se(*first2 * *first3 - *first1 * eve::log(*first2 * *first3) + eve::log_abs_gamma(T {1} + *first1));
     }
@@ -930,7 +937,7 @@ inline auto gaussian_neg_likelihood_loss(I first1, std::sentinel_for<I> auto las
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -939,7 +946,7 @@ inline auto gaussian_neg_likelihood_loss(I first1, std::sentinel_for<I> auto las
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::sum>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::sqr(*first1 - *first2));
     }
@@ -970,7 +977,7 @@ inline auto poisson_log_neg_likelihood_loss(I first1, std::sentinel_for<I> auto 
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
-    univariate_accumulator<wide> we;
+    univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
@@ -979,7 +986,7 @@ inline auto poisson_log_neg_likelihood_loss(I first1, std::sentinel_for<I> auto 
     }
 
     // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T>::load_state(we.stats());
+    auto se = univariate_accumulator<T, stats::sum>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2) {
         se(eve::exp(*first2) - *first1 * *first2 + eve::log_abs_gamma(T {1} + *first1));
     }
