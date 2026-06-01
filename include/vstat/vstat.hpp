@@ -32,6 +32,15 @@ auto inline load(I iter, F&& func)
     { return T {std::forward<F>(func)(*(iter + Idx))...}; }(std::make_index_sequence<T::size()> {});
 }
 
+// binary projection overload: applies func(a, b) element-wise across two iterators
+template<eve::simd_value T, std::random_access_iterator I, std::random_access_iterator J, typename F>
+    requires std::is_invocable_v<F, std::iter_value_t<I>, std::iter_value_t<J>>
+auto inline load(I iter1, J iter2, F&& func)
+{
+    return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) -> auto
+    { return T {std::forward<F>(func)(*(iter1 + Idx), *(iter2 + Idx))...}; }(std::make_index_sequence<T::size()> {});
+}
+
 // utility method to advance a set of iterators
 template<typename Distance, typename... Iters>
 auto inline advance(Distance d, Iters&... iters) -> void
@@ -219,11 +228,9 @@ inline auto accumulate(I first1,
         return univariate_statistics(scalar_acc);
     }
 
-    std::array<T, s> x;
     univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
-        std::transform(first1, first1 + s, first2, x.begin(), f);
-        acc(wide {x.data()});
+        acc(detail::load<wide>(first1, first2, f));
         detail::advance(s, first1, first2);
     }
 
@@ -303,11 +310,9 @@ inline auto accumulate(I first1,
         return univariate_statistics(scalar_acc);
     }
 
-    std::array<T, s> x;
     univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
-        std::transform(first1, first1 + s, first2, x.begin(), f);
-        acc(wide(x), wide(first3, first3 + s));
+        acc(detail::load<wide>(first1, first2, f), wide(first3, first3 + s));
         detail::advance(s, first1, first2, first3);
     }
 
@@ -902,7 +907,7 @@ inline auto poisson_neg_likelihood_loss(I first1, I last1, J first2, K first3) n
     univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
-        wide y_pred = eve::mul(wide {std::to_address(first2)}, wide {std::to_address(first3)});
+        wide y_pred = wide {std::to_address(first2)} * wide {std::to_address(first3)};
         we(y_pred - y_true * eve::log(y_pred) + eve::log_abs_gamma(T {1} + y_true));
         detail::advance(s, first1, first2, first3);
     }
