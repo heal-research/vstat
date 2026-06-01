@@ -161,7 +161,7 @@ TEST_CASE("sum", "[correctness]")
         auto x = test_util::generate<T>(rng, n);
 
         auto m1 = stat_other::boost::sum(x);
-        auto m2 = uv::accumulate<T>(x.begin(), x.end()).sum;
+        auto m2 = uv::accumulate<T, vstat::stats::sum>(x.begin(), x.end()).sum;
 
         if (!test_util::rel_equal<T>(m1, m2, eps)) {
             auto m3 = stat_other::gsl::sum(x);
@@ -216,7 +216,7 @@ TEST_CASE("weighted sum", "[correctness]")
         auto w = test_util::generate<T>(rng, n);
 
         auto m1 = stat_other::boost::sum(x, w);
-        auto m2 = uv::accumulate<T>(x.begin(), x.end(), w.begin()).sum;
+        auto m2 = uv::accumulate<T, vstat::stats::sum>(x.begin(), x.end(), w.begin()).sum;
 
         if (!test_util::rel_equal<T>(m1, m2, eps)) {
             auto m3 = stat_other::gsl::sum(x, w);
@@ -256,7 +256,7 @@ TEST_CASE("mean", "[correctness]")
         auto x = test_util::generate<T>(rng, n);
 
         auto m1 = stat_other::boost::mean(x);
-        auto m2 = uv::accumulate<T>(x.begin(), x.end()).mean;
+        auto m2 = uv::accumulate<T, vstat::stats::mean>(x.begin(), x.end()).mean;
 
         INFO("m1 = " << m1);
         INFO("m2 = " << m2);
@@ -290,7 +290,7 @@ TEST_CASE("weighted mean", "[correctness]")
         auto w = test_util::generate<T>(rng, n);
 
         auto m1 = stat_other::boost::mean(x, w);
-        auto m2 = uv::accumulate<T>(x.begin(), x.end(), w.begin()).mean;
+        auto m2 = uv::accumulate<T, vstat::stats::mean>(x.begin(), x.end(), w.begin()).mean;
 
         INFO("m1 = " << m1);
         INFO("m2 = " << m2);
