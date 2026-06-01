@@ -311,7 +311,7 @@ inline auto accumulate(I first1,
 
     univariate_accumulator<wide, Stats> acc;
     for (size_t i = 0; i < m; i += s) {
-        acc(detail::load<wide>(first1, first2, f), wide(first3, first3 + s));
+        acc(detail::load<wide>(first1, first2, f), wide {std::to_address(first3)});
         detail::advance(s, first1, first2, first3);
     }
 
