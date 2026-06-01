@@ -106,8 +106,11 @@ struct univariate_accumulator
             return {sum_w, sum_x, sum_xx};
         } else if constexpr (Stats == stats::variance) {
             return {eve::reduce(sum_w), eve::reduce(sum_x), combine(sum_w, sum_x, sum_xx)};
-        } else {
+        } else if constexpr (Stats == stats::mean) {
             return {eve::reduce(sum_w), eve::reduce(sum_x), 0.0};
+        } else {
+            // Stats == stats::sum: sum_w was never written, skip the reduce
+            return {0.0, eve::reduce(sum_x), 0.0};
         }
     }
 

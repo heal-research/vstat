@@ -6,8 +6,6 @@
 #include <random>
 #include <vector>
 
-// catch2 must come before stat_other.hpp: linasm's Types.h #defines size_t,
-// which breaks Catch2's internal static_cast<std::size_t> usage.
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -15,8 +13,12 @@
 
 #define ANKERL_NANOBENCH_IMPLEMENT
 #include "nanobench.h"
+
+// linasm's Types.h #defines size_t as a plain int typedef, which breaks
+// Catch2's internal static_cast<std::size_t> usage.  Bracket the include so
+// the macro never escapes into Catch2 or std headers.
 #include "stat_other.hpp"
-#undef size_t  // linasm/Types.h #defines size_t; undo it so std::size_t works in Catch2 macros
+#undef size_t
 
 namespace nb = ankerl::nanobench;
 
