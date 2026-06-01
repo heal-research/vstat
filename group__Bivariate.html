@@ -122,16 +122,16 @@ $(document).ready(function(){initNavTree('group__Bivariate.html',''); initResiza
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:gaacc97164ce2d352d9343f990ac1c859f" id="r_gaacc97164ce2d352d9343f990ac1c859f"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J, typename F1  = std::identity, typename F2  = std::identity&gt; <br />
+<tr class="memitem:ga5eebc7244b20320ca438df03dc84411a" id="r_ga5eebc7244b20320ca438df03dc84411a"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J, typename F1  = std::identity, typename F2  = std::identity&gt; <br />
 requires concepts::arithmetic_projection&lt;F1, std::iter_value_t&lt;I&gt;&gt;</td></tr>
-<tr class="memitem:gaacc97164ce2d352d9343f990ac1c859f"><td class="memTemplItemLeft" align="right" valign="top">and concepts::arithmetic_projection&lt; F2, std::iter_value_t&lt; J &gt; &gt; auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Bivariate.html#gaacc97164ce2d352d9343f990ac1c859f">accumulate</a> (I first1, std::sized_sentinel_for&lt; I &gt; auto last1, J first2, F1 &amp;&amp;f1=F1{}, F2 &amp;&amp;f2=F2{})</td></tr>
-<tr class="separator:gaacc97164ce2d352d9343f990ac1c859f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga5eebc7244b20320ca438df03dc84411a"><td class="memTemplItemLeft" align="right" valign="top">and concepts::arithmetic_projection&lt; F2, std::iter_value_t&lt; J &gt; &gt; auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Bivariate.html#ga5eebc7244b20320ca438df03dc84411a">accumulate</a> (I first1, std::sized_sentinel_for&lt; I &gt; auto last1, J first2, F1 &amp;&amp;f1=F1 {}, F2 &amp;&amp;f2=F2 {})</td></tr>
+<tr class="separator:ga5eebc7244b20320ca438df03dc84411a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>Methods for bivariate statistics. </p>
 <h2 class="groupheader">Function Documentation</h2>
-<a id="gaacc97164ce2d352d9343f990ac1c859f" name="gaacc97164ce2d352d9343f990ac1c859f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaacc97164ce2d352d9343f990ac1c859f">&#9670;&#160;</a></span>accumulate()</h2>
+<a id="ga5eebc7244b20320ca438df03dc84411a" name="ga5eebc7244b20320ca438df03dc84411a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga5eebc7244b20320ca438df03dc84411a">&#9670;&#160;</a></span>accumulate()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -164,13 +164,13 @@ requires concepts::arithmetic_projection&lt;F1, std::iter_value_t&lt;I&gt;&gt;</
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">F1 &amp;&amp;&#160;</td>
-          <td class="paramname"><em>f1</em> = <code>F1{}</code>, </td>
+          <td class="paramname"><em>f1</em> = <code>F1&#160;{}</code>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">F2 &amp;&amp;&#160;</td>
-          <td class="paramname"><em>f2</em> = <code>F2{}</code>&#160;</td>
+          <td class="paramname"><em>f2</em> = <code>F2&#160;{}</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -203,25 +203,25 @@ requires concepts::arithmetic_projection&lt;F1, std::iter_value_t&lt;I&gt;&gt;</
   </dd>
 </dl>
 <p><b>Example</b> </p>
-<div class="fragment"><div class="line"><span class="keywordtype">float</span> x[] = { 1., 1., 2., 6. };</div>
-<div class="line"><span class="keywordtype">float</span> y[] = { 2., 4., 3., 1. };</div>
-<div class="line"><span class="keyword">auto</span> stats = bivariate::accumulate&lt;float&gt;(std::begin(x), std::end(x), std::begin(y));</div>
-<div class="line">std::cout &lt;&lt; stats &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
-<div class="line"><span class="comment">// results</span></div>
-<div class="line">count:                  4</div>
-<div class="line">sum_x:                  10</div>
-<div class="line">ssr_x:                  17</div>
-<div class="line">mean_x:                 2.5</div>
-<div class="line">variance_x:             4.25</div>
-<div class="line">sample variance_x:      5.66667</div>
-<div class="line">sum_y:                  10</div>
-<div class="line">ssr_y:                  5</div>
-<div class="line">mean_y:                 2.5</div>
-<div class="line">variance_y:             1.25</div>
-<div class="line">sample variance_y:      1.66667</div>
-<div class="line">correlation:            -0.759257</div>
-<div class="line">covariance:             -1.75</div>
-<div class="line">sample covariance:      -2.33333</div>
+<div class="fragment"><div class="line"> <span class="keywordtype">float</span> x[] = { 1., 1., 2., 6. };</div>
+<div class="line"> <span class="keywordtype">float</span> y[] = { 2., 4., 3., 1. };</div>
+<div class="line"> <span class="keyword">auto</span> stats = bivariate::accumulate&lt;float&gt;(std::begin(x), std::end(x),</div>
+<div class="line">std::begin(y)); std::cout &lt;&lt; stats &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
+<div class="line"> <span class="comment">// results</span></div>
+<div class="line"> count:                  4</div>
+<div class="line"> sum_x:                  10</div>
+<div class="line"> ssr_x:                  17</div>
+<div class="line"> mean_x:                 2.5</div>
+<div class="line"> variance_x:             4.25</div>
+<div class="line"> sample variance_x:      5.66667</div>
+<div class="line"> sum_y:                  10</div>
+<div class="line"> ssr_y:                  5</div>
+<div class="line"> mean_y:                 2.5</div>
+<div class="line"> variance_y:             1.25</div>
+<div class="line"> sample variance_y:      1.66667</div>
+<div class="line"> correlation:            -0.759257</div>
+<div class="line"> covariance:             -1.75</div>
+<div class="line"> sample covariance:      -2.33333</div>
 </div><!-- fragment --> 
 </div>
 </div>

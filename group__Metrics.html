@@ -158,10 +158,77 @@ Functions</h2></td></tr>
 <tr class="memitem:gaea44b249373f16e3eab3dc0ad6c5e15f" id="r_gaea44b249373f16e3eab3dc0ad6c5e15f"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J, std::input_iterator K&gt; </td></tr>
 <tr class="memitem:gaea44b249373f16e3eab3dc0ad6c5e15f"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#gaea44b249373f16e3eab3dc0ad6c5e15f">poisson_neg_likelihood_loss</a> (I first1, std::sentinel_for&lt; I &gt; auto last1, J first2, K first3) noexcept -&gt; double</td></tr>
 <tr class="separator:gaea44b249373f16e3eab3dc0ad6c5e15f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga53d738d89fa3efe50e358e49b26b5c59" id="r_ga53d738d89fa3efe50e358e49b26b5c59"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&gt; </td></tr>
+<tr class="memitem:ga53d738d89fa3efe50e358e49b26b5c59"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga53d738d89fa3efe50e358e49b26b5c59">gaussian_neg_likelihood_loss</a> (I first1, std::sentinel_for&lt; I &gt; auto last1, J first2, T sigma) noexcept -&gt; double</td></tr>
+<tr class="separator:ga53d738d89fa3efe50e358e49b26b5c59"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga67dce3ba71a80af013453ed580ae3bff" id="r_ga67dce3ba71a80af013453ed580ae3bff"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&gt; </td></tr>
+<tr class="memitem:ga67dce3ba71a80af013453ed580ae3bff"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga67dce3ba71a80af013453ed580ae3bff">poisson_log_neg_likelihood_loss</a> (I first1, std::sentinel_for&lt; I &gt; auto last1, J first2) noexcept -&gt; double</td></tr>
+<tr class="separator:ga67dce3ba71a80af013453ed580ae3bff"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>Regression metrics (R2, MSE, MLSE, MAE). </p>
 <h2 class="groupheader">Function Documentation</h2>
+<a id="ga53d738d89fa3efe50e358e49b26b5c59" name="ga53d738d89fa3efe50e358e49b26b5c59"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga53d738d89fa3efe50e358e49b26b5c59">&#9670;&#160;</a></span>gaussian_neg_likelihood_loss()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">auto gaussian_neg_likelihood_loss </td>
+          <td>(</td>
+          <td class="paramtype">I&#160;</td>
+          <td class="paramname"><em>first1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::sentinel_for&lt; I &gt; auto&#160;</td>
+          <td class="paramname"><em>last1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">J&#160;</td>
+          <td class="paramname"><em>first2</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">T&#160;</td>
+          <td class="paramname"><em>sigma</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> -&gt; double
+</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Negative log likelihood loss under a Gaussian with known scalar noise level \(\sigma\). </p>
+<p class="formulaDsp">
+\[
+     -\log\mathcal{L}_\text{gaussian}(y, \hat{y}, \sigma) =
+     \frac{n}{2}\log(2\pi) + n\log(\sigma) + \frac{1}{2\sigma^2}
+     \sum_i (y_i - \hat{y}_i)^2
+ \]
+</p>
+<dl class="section pre"><dt>Precondition</dt><dd><code>sigma &gt; 0</code>. Passing a non-positive value produces <code>NaN</code>/<code>inf</code> silently. </dd></dl>
+
+</div>
+</div>
 <a id="ga4ff2225cb37f1bb73f4d43a265dac44b" name="ga4ff2225cb37f1bb73f4d43a265dac44b"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga4ff2225cb37f1bb73f4d43a265dac44b">&#9670;&#160;</a></span>mean_absolute_error() <span class="overload">[1/2]</span></h2>
 
@@ -194,7 +261,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -207,8 +275,9 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
 <p>Computes the mean absolute error. </p>
 <p class="formulaDsp">
 \[
-    \text{MAE}(y, \hat{y}) = \displaystyle \frac{1}{n} {\sum_{i=1}^n |y-\hat{y}|}
-\]
+     \text{MAE}(y, \hat{y}) = \displaystyle \frac{1}{n} {\sum_{i=1}^n
+|y-\hat{y}|}
+ \]
 </p>
  
 </div>
@@ -251,7 +320,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -264,8 +334,9 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
 <p>Weighted mean absolute error. </p>
 <p class="formulaDsp">
 \[
-    \text{MAE}(y, \hat{y}) = \displaystyle \frac{1}{\sum_{i=1}^n w_i} \sum_{i=1}^n w_i |y-\hat{y}|
-\]
+     \text{MAE}(y, \hat{y}) = \displaystyle \frac{1}{\sum_{i=1}^n w_i}
+\sum_{i=1}^n w_i |y-\hat{y}|
+ \]
 </p>
  
 </div>
@@ -302,7 +373,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -312,7 +384,7 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
 </table>
 </div><div class="memdoc">
 
-<p>Computes the mean absolute error. </p>
+<p>Computes the mean absolute percentage error. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td></td></tr>
@@ -321,8 +393,9 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
 </dl>
 <p class="formulaDsp">
 \[
-    \text{MAPE}(y, \hat{y}) = \frac{1}{n} \sum_{i=1}^{n} \frac{{}\left| y_i - \hat{y}_i \right|}{\max(\epsilon, \left| y_i \right|)}
-\]
+     \text{MAPE}(y, \hat{y}) = \frac{1}{n} \sum_{i=1}^{n} \frac{{}\left| y_i
+- \hat{y}_i \right|}{\max(\epsilon, \left| y_i \right|)}
+ \]
 </p>
 <p> where \(\epsilon\) = <code>std::numeric_limits&lt;T&gt;::epsilon()</code> is an arbitrarily small constant to prevent division by zero. </p>
 
@@ -366,7 +439,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -379,8 +453,9 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
 <p>Weighted mean absolute percentage error. </p>
 <p class="formulaDsp">
 \[
-    \text{WMAPE}(y, \hat{y}) = \displaystyle \frac{1}{\sum_i^n w_i} \frac{\sum_{i=1}^n w_i |y-\hat{y}|}{\max(\epsilon, \left| y_i \right|)}
-\]
+     \text{WMAPE}(y, \hat{y}) = \displaystyle \frac{1}{\sum_i^n w_i}
+\frac{\sum_{i=1}^n w_i |y-\hat{y}|}{\max(\epsilon, \left| y_i \right|)}
+ \]
 </p>
  
 </div>
@@ -417,7 +492,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -430,8 +506,9 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
 <p>Computes the mean squared error. </p>
 <p class="formulaDsp">
 \[
-    \text{MSE}(y, \hat{y}) = \displaystyle \frac{1}{n} {\sum_{i=1}^n \left(y-\hat{y}\right)^2}
-\]
+     \text{MSE}(y, \hat{y}) = \displaystyle \frac{1}{n} {\sum_{i=1}^n
+\left(y-\hat{y}\right)^2}
+ \]
 </p>
  
 </div>
@@ -474,7 +551,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -487,8 +565,9 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
 <p>Computes the weighted mean squared error. </p>
 <p class="formulaDsp">
 \[
-    \text{MSE}(y, \hat{y}) = {\displaystyle \frac{1}{\sum_{i=1}^n w_i}} \sum_{i=1}^n w_i \left(y-\hat{y}\right)^2
-\]
+     \text{MSE}(y, \hat{y}) = {\displaystyle \frac{1}{\sum_{i=1}^n w_i}}
+\sum_{i=1}^n w_i \left(y-\hat{y}\right)^2
+ \]
 </p>
  
 </div>
@@ -525,7 +604,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -538,8 +618,9 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
 <p>Computes the mean squared logarithmic error. </p>
 <p class="formulaDsp">
 \[
-    \text{MSLE}(y, \hat{y}) = \frac{1}{n} \sum_{i=1}^{n} (\log_e (1 + y_i) - \log_e (1 + \hat{y}_i) )^2
-\]
+     \text{MSLE}(y, \hat{y}) = \frac{1}{n} \sum_{i=1}^{n} (\log_e (1 + y_i) -
+\log_e (1 + \hat{y}_i) )^2
+ \]
 </p>
  
 </div>
@@ -582,7 +663,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -595,8 +677,62 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
 <p>Computes the weighted mean squared logarithmic error. </p>
 <p class="formulaDsp">
 \[
-    \text{MSLE}(y, \hat{y}) = \frac{1}{\sum_{i=1}^n w_i} \sum_{i=1}^{n} w_i (\log_e (1 + y_i) - \log_e (1 + \hat{y}_i) )^2
-\]
+     \text{MSLE}(y, \hat{y}) = \frac{1}{\sum_{i=1}^n w_i} \sum_{i=1}^{n} w_i
+(\log_e (1 + y_i) - \log_e (1 + \hat{y}_i) )^2
+ \]
+</p>
+ 
+</div>
+</div>
+<a id="ga67dce3ba71a80af013453ed580ae3bff" name="ga67dce3ba71a80af013453ed580ae3bff"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga67dce3ba71a80af013453ed580ae3bff">&#9670;&#160;</a></span>poisson_log_neg_likelihood_loss()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">auto poisson_log_neg_likelihood_loss </td>
+          <td>(</td>
+          <td class="paramtype">I&#160;</td>
+          <td class="paramname"><em>first1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::sentinel_for&lt; I &gt; auto&#160;</td>
+          <td class="paramname"><em>last1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">J&#160;</td>
+          <td class="paramname"><em>first2</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> -&gt; double
+</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Negative log likelihood loss with Poisson distribution of target, where the model outputs \(x = \log(\mu)\) (the natural log of the Poisson mean). </p>
+<p class="formulaDsp">
+\[
+     -\log\mathcal{L}_\text{poisson-log}(y, x) =
+     \sum_i \left[ e^{x_i} - y_i \cdot x_i + \ln(|\Gamma(y_i + 1)|) \right]
+ \]
 </p>
  
 </div>
@@ -633,7 +769,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -646,10 +783,11 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
 <p>Negative log likelihood loss with Poisson distribution of target. </p>
 <p class="formulaDsp">
 \[
-    -\log\mathcal{L}_\text{poisson}(y, \hat{y}) = \hat{y} - y \cdot \log(\hat{y}) + \ln(|\Gamma(y)|)
-\]
+     -\log\mathcal{L}_\text{poisson}(y, \hat{y}) = \hat{y} - y \cdot
+\log(\hat{y}) + \ln(|\Gamma(y+1)|)
+ \]
 </p>
-<p> where \(\Gamma(y)\) is returned by <a href="https://jfalcou.github.io/eve/group__special_gae09a3d5ef50adfebd1d42611611cae5a.html#gae09a3d5ef50adfebd1d42611611cae5a">eve::gamma_p</a>. </p>
+<p> where \(\ln|\Gamma(y+1)| = \log(y!)\) is computed via <a href="https://jfalcou.github.io/eve/group__special_gae09a3d5ef50adfebd1d42611611cae5a.html#gae09a3d5ef50adfebd1d42611611cae5a">eve::log_abs_gamma</a>. </p>
 
 </div>
 </div>
@@ -691,7 +829,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -704,10 +843,11 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
 <p>Negative log likelihood loss with Poisson distribution of target. The mean in each bin is multiplied by a weight before the Poisson likelihood is applied. </p>
 <p class="formulaDsp">
 \[
-    -\log\mathcal{L}_\text{poisson}(y, w \cdot \hat{y}) = \hat{y} - y \cdot \log(\hat{y}) + \ln(|\Gamma(y)|)
-\]
+     -\log\mathcal{L}_\text{poisson}(y, w \cdot \hat{y}) = w\hat{y} - y \cdot
+\log(w\hat{y}) + \ln(|\Gamma(y+1)|)
+ \]
 </p>
-<p> where \(\Gamma(y)\) is returned by <a href="https://jfalcou.github.io/eve/group__special_gae09a3d5ef50adfebd1d42611611cae5a.html#gae09a3d5ef50adfebd1d42611611cae5a">eve::gamma_p</a>. </p>
+<p> where \(\ln|\Gamma(y+1)| = \log(y!)\) is computed via <a href="https://jfalcou.github.io/eve/group__special_gae09a3d5ef50adfebd1d42611611cae5a.html#gae09a3d5ef50adfebd1d42611611cae5a">eve::log_abs_gamma</a>. </p>
 
 </div>
 </div>
@@ -743,7 +883,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
@@ -762,10 +903,10 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J&
 </dl>
 <p class="formulaDsp">
 \begin{align}
-    R^2(y, \hat{y}) &amp;= 1 - \frac{\text{RSS}}{\text{TSS}}\text{, where}\\
-    \text{RSS} &amp;= \sum_{i=1}^n \left( y - \hat{y} \right)^2\\
-    \text{TSS} &amp;= \sum_{i=1}^n \left( y - \bar{y} \right)^2\\
-\end{align}
+     R^2(y, \hat{y}) &amp;= 1 - \frac{\text{RSS}}{\text{TSS}}\text{, where}\\
+     \text{RSS} &amp;= \sum_{i=1}^n \left( y - \hat{y} \right)^2\\
+     \text{TSS} &amp;= \sum_{i=1}^n \left( y - \bar{y} \right)^2\\
+ \end{align}
 </p>
  
 </div>
@@ -808,7 +949,8 @@ template&lt;std::floating_point T, std::input_iterator I, std::input_iterator J,
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double </td>
+          <td></td><td> -&gt; double
+</td>
         </tr>
       </table>
   </td>
