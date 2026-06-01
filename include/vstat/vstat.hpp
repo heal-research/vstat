@@ -482,8 +482,8 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2) noexce
     univariate_accumulator<wide> wx;
     univariate_accumulator<wide> wy;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {first1};
-        wide y_pred {first2};
+        wide y_true {std::to_address(first1)};
+        wide y_pred {std::to_address(first2)};
         wx(eve::sqr(y_true - y_pred));
         wy(y_true);
         detail::advance(s, first1, first2);
@@ -526,9 +526,9 @@ inline auto r2_score(I first1, std::sentinel_for<I> auto last1, J first2, K firs
     univariate_accumulator<wide> wx;
     univariate_accumulator<wide> wy;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {first1};
-        wide y_pred {first2};
-        wide weight {first3};
+        wide y_true {std::to_address(first1)};
+        wide y_pred {std::to_address(first2)};
+        wide weight {std::to_address(first3)};
         wx(eve::sqr(y_true - y_pred), weight);
         wy(y_true, weight);
         detail::advance(s, first1, first2, first3);
@@ -759,7 +759,7 @@ inline auto mean_absolute_error(I first1, std::sentinel_for<I> auto last1, J fir
 /*!
     \ingroup Metrics
 
-    \brief Computes the mean absolute error
+    \brief Computes the mean absolute percentage error
 
     \tparam T
 
@@ -815,19 +815,21 @@ inline auto mean_absolute_percentage_error(I first1, std::sentinel_for<I> auto l
     auto const n {std::distance(first1, last1)};
     auto const m {n - n % s};
 
+    auto constexpr eps {std::numeric_limits<T>::epsilon()};
+
     univariate_accumulator<wide> we;
     for (auto i = 0; i < m; i += s) {
         wide y_true {std::to_address(first1)};
         wide y_pred {std::to_address(first2)};
         wide weight {std::to_address(first3)};
-        we(eve::abs(y_true - y_pred), weight);
+        we(eve::abs(y_true - y_pred) / eve::max(eps, eve::abs(y_true)), weight);
         detail::advance(s, first1, first2, first3);
     }
 
     // use scalar accumulators for the remaining values
     auto se = univariate_accumulator<T>::load_state(we.stats());
     for (; first1 < last1; ++first1, ++first2, ++first3) {
-        se(eve::abs(*first1 - *first2), *first3);
+        se(eve::abs(*first1 - *first2) / eve::max(eps, eve::abs(*first1)), *first3);
     }
     return univariate_statistics(se).mean;
 }
