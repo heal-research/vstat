@@ -5,14 +5,17 @@
 #define VSTAT_BIVARIATE_HPP
 
 #include "combine.hpp"
+#include "eve/module/core/regular/diff_of_prod.hpp"
 
-namespace VSTAT_NAMESPACE {
+namespace VSTAT_NAMESPACE
+{
 /*!
     \brief Bivariate accumulator object
 */
-template <typename T>
-struct bivariate_accumulator {
-    static auto load_state(T sx, T sy, T sw, T sxx, T syy, T sxy) noexcept -> bivariate_accumulator<T> // NOLINT
+template<typename T>
+struct bivariate_accumulator
+{
+    static auto load_state(T sx, T sy, T sw, T sxx, T syy, T sxy) noexcept -> bivariate_accumulator<T>  // NOLINT
     {
         bivariate_accumulator<T> acc;
         acc.sum_w = sw;
@@ -49,7 +52,7 @@ struct bivariate_accumulator {
         sum_w_old = sum_w;
     }
 
-    inline void operator()(T x, T y, T w) noexcept // NOLINT
+    inline void operator()(T x, T y, T w) noexcept  // NOLINT
     {
         T dx = x * sum_w - sum_x;
         T dy = y * sum_w - sum_y;
@@ -66,48 +69,49 @@ struct bivariate_accumulator {
         sum_w_old = sum_w;
     }
 
-    template <typename U>
-    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
+    template<typename U>
+        requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
     inline void operator()(U const* x, U const* y) noexcept
     {
-        (*this)(T{x}, T{y});
+        (*this)(T {x}, T {y});
     }
 
-    template <typename U>
-    requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
+    template<typename U>
+        requires eve::simd_value<T> && eve::simd_compatible_ptr<U, T>
     inline void operator()(U const* x, U const* y, U const* w) noexcept
     {
-        (*this)(T{x}, T{y}, T{w});
+        (*this)(T {x}, T {y}, T {w});
     }
 
     // performs a reduction on the vector types and returns the sums and the squared residuals sums
     auto stats() const noexcept -> std::tuple<double, double, double, double, double, double>
     {
         if constexpr (std::is_floating_point_v<T>) {
-            return { sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy };
+            return {sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy};
         } else {
             auto [sxx, syy, sxy] = combine(sum_w, sum_x, sum_y, sum_xx, sum_yy, sum_xy);
-            return { eve::reduce(sum_w), eve::reduce(sum_x), eve::reduce(sum_y), sxx, syy, sxy };
+            return {eve::reduce(sum_w), eve::reduce(sum_x), eve::reduce(sum_y), sxx, syy, sxy};
         }
     }
 
-private:
+  private:
     // sum of weights
-    T sum_w{0};
-    T sum_w_old{1};
+    T sum_w {0};
+    T sum_w_old {1};
     // means
-    T sum_x{0};
-    T sum_y{0};
+    T sum_x {0};
+    T sum_y {0};
     // squared residuals
-    T sum_xx{0};
-    T sum_yy{0};
-    T sum_xy{0};
+    T sum_xx {0};
+    T sum_yy {0};
+    T sum_xy {0};
 };
 
 /*!
     \brief Bivariate statistics
 */
-struct bivariate_statistics {
+struct bivariate_statistics
+{
     double count;
     double sum_x;
     double sum_y;
@@ -124,7 +128,7 @@ struct bivariate_statistics {
     double covariance;
     double sample_covariance;
 
-    template <typename T>
+    template<typename T>
     explicit bivariate_statistics(T accumulator)
     {
         auto [sw, sx, sy, sxx, syy, sxy] = accumulator.stats();
@@ -154,23 +158,15 @@ struct bivariate_statistics {
 
 inline auto operator<<(std::ostream& os, bivariate_statistics const& stats) -> std::ostream&
 {
-    os << "count:              \t" << stats.count
-       << "\nsum_x:            \t" << stats.sum_x
-       << "\nssr_x:            \t" << stats.ssr_x
-       << "\nmean_x:           \t" << stats.mean_x
-       << "\nvariance_x:       \t" << stats.variance_x
-       << "\nsample variance_x:\t" << stats.sample_variance_x
-       << "\nsum_y:            \t" << stats.sum_y
-       << "\nssr_y:            \t" << stats.ssr_y
-       << "\nmean_y:           \t" << stats.mean_y
-       << "\nvariance_y:       \t" << stats.variance_y
-       << "\nsample variance_y:\t" << stats.sample_variance_y
-       << "\ncorrelation:      \t" << stats.correlation
-       << "\ncovariance:       \t" << stats.covariance
-       << "\nsample covariance:\t" << stats.sample_covariance
-       << "\n";
+    os << "count:              \t" << stats.count << "\nsum_x:            \t" << stats.sum_x << "\nssr_x:            \t"
+       << stats.ssr_x << "\nmean_x:           \t" << stats.mean_x << "\nvariance_x:       \t" << stats.variance_x
+       << "\nsample variance_x:\t" << stats.sample_variance_x << "\nsum_y:            \t" << stats.sum_y
+       << "\nssr_y:            \t" << stats.ssr_y << "\nmean_y:           \t" << stats.mean_y
+       << "\nvariance_y:       \t" << stats.variance_y << "\nsample variance_y:\t" << stats.sample_variance_y
+       << "\ncorrelation:      \t" << stats.correlation << "\ncovariance:       \t" << stats.covariance
+       << "\nsample covariance:\t" << stats.sample_covariance << "\n";
     return os;
 }
-} // namespace VSTAT_NAMESPACE
+}  // namespace VSTAT_NAMESPACE
 
 #endif
