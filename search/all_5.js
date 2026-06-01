@@ -1,4 +1,9 @@
 var searchData=
 [
-  ['notes_0',['Notes',['../index.html#autotoc_md7',1,'']]]
+  ['mean_5fabsolute_5ferror_0',['mean_absolute_error',['../group__Metrics.html#ga9e3d0de50929fcf262b1408963921c9c',1,'VSTAT_NAMESPACE::metrics::mean_absolute_error(I first1, I last1, J first2) noexcept -&gt; double'],['../group__Metrics.html#gab03ed83f3485b1f9bd46ebabafa71cc1',1,'VSTAT_NAMESPACE::metrics::mean_absolute_error(I first1, I last1, J first2, K first3) noexcept -&gt; double']]],
+  ['mean_5fabsolute_5fpercentage_5ferror_1',['mean_absolute_percentage_error',['../group__Metrics.html#gaf72b10bf40825580bf73ff6afe5a10e8',1,'VSTAT_NAMESPACE::metrics::mean_absolute_percentage_error(I first1, I last1, J first2) noexcept -&gt; double'],['../group__Metrics.html#gaf14b96edb44e19000827e932c2caf1ad',1,'VSTAT_NAMESPACE::metrics::mean_absolute_percentage_error(I first1, I last1, J first2, K first3) noexcept -&gt; double']]],
+  ['mean_5fsquared_5ferror_2',['mean_squared_error',['../group__Metrics.html#gad735d45692f174d15fd1d3f64f2ff934',1,'VSTAT_NAMESPACE::metrics::mean_squared_error(I first1, I last1, J first2) noexcept -&gt; double'],['../group__Metrics.html#ga8fdd0d0b6a83d4426d3fbe090e817438',1,'VSTAT_NAMESPACE::metrics::mean_squared_error(I first1, I last1, J first2, K first3) noexcept -&gt; double']]],
+  ['mean_5fsquared_5flog_5ferror_3',['mean_squared_log_error',['../group__Metrics.html#ga661e62a6976843e2cfa2bfd7d653983a',1,'VSTAT_NAMESPACE::metrics::mean_squared_log_error(I first1, I last1, J first2) noexcept -&gt; double'],['../group__Metrics.html#ga7dee3355c1c7ff7556f9e701fff13aa6',1,'VSTAT_NAMESPACE::metrics::mean_squared_log_error(I first1, I last1, J first2, K first3) noexcept -&gt; double']]],
+  ['methodology_4',['methodology',['../index.html#autotoc_md6',1,'Methodology'],['../md_index.html#autotoc_md10',1,'Methodology']]],
+  ['metrics_5',['Regression metrics',['../group__Metrics.html',1,'']]]
 ];

@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['simd_20primitives_0',['Vectorized statistics using SIMD primitives',['../index.html#autotoc_md0',1,'']]],
-  ['statistics_1',['statistics',['../index.html#autotoc_md4',1,'Available statistics'],['../group__Bivariate.html',1,'Bivariate statistics'],['../group__Univariate.html',1,'Univariate statistics']]],
-  ['statistics_20using_20simd_20primitives_2',['Vectorized statistics using SIMD primitives',['../index.html#autotoc_md0',1,'']]]
+  ['r2_5fscore_0',['r2_score',['../group__Metrics.html#ga8d7f541d4aded411f854bf009de49069',1,'VSTAT_NAMESPACE::metrics::r2_score(I first1, I last1, J first2) noexcept -&gt; double'],['../group__Metrics.html#ga9edc3e4e14928efb07be3c69fb7987e7',1,'VSTAT_NAMESPACE::metrics::r2_score(I first1, I last1, J first2, K first3) noexcept -&gt; double']]],
+  ['regression_20metrics_1',['Regression metrics',['../group__Metrics.html',1,'']]]
 ];

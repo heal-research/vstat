@@ -1,7 +1,7 @@
 var group__Univariate =
 [
-    [ "accumulate", "group__Univariate.html#gadb1d3bf4b60e0fa274bfb8d3b6af2a75", null ],
-    [ "accumulate", "group__Univariate.html#gafe056d9d2056f004b5c3a7d4fd686e81", null ],
-    [ "accumulate", "group__Univariate.html#ga88742ef711ec761cb275cea463c5943a", null ],
-    [ "accumulate", "group__Univariate.html#ga92a88875792e8d1571ce21bf55b7b3d5", null ]
+    [ "accumulate", "group__Univariate.html#ga3ea75ccd36adedb3de29848531674507", null ],
+    [ "accumulate", "group__Univariate.html#ga7540cf6bd8fc72da046cd02e09e28644", null ],
+    [ "accumulate", "group__Univariate.html#ga2658fb49f4b72e993de8900dccfd3fef", null ],
+    [ "accumulate", "group__Univariate.html#gae7e11580c1e1f2ebe1829a4c503d8a97", null ]
 ];

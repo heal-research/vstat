@@ -1,17 +1,17 @@
 var group__Metrics =
 [
-    [ "gaussian_neg_likelihood_loss", "group__Metrics.html#ga53d738d89fa3efe50e358e49b26b5c59", null ],
-    [ "mean_absolute_error", "group__Metrics.html#ga4ff2225cb37f1bb73f4d43a265dac44b", null ],
-    [ "mean_absolute_error", "group__Metrics.html#gaa3e4f47e3af64f17a97ed9480d909131", null ],
-    [ "mean_absolute_percentage_error", "group__Metrics.html#ga8f24fc8e1cfd7b59d5793b1acd7b8f42", null ],
-    [ "mean_absolute_percentage_error", "group__Metrics.html#ga976987101422e09577b8835d7b23a83e", null ],
-    [ "mean_squared_error", "group__Metrics.html#gaf258ad1043ee576fec45c3ad5be822df", null ],
-    [ "mean_squared_error", "group__Metrics.html#gaf5ae47f5b84b264f7fcf67d794d281ab", null ],
-    [ "mean_squared_log_error", "group__Metrics.html#gaec59c3bec2b06f9f4a975ece9cd61172", null ],
-    [ "mean_squared_log_error", "group__Metrics.html#ga7bf9e9d88861bc7af4431ebfe8e4ce81", null ],
-    [ "poisson_log_neg_likelihood_loss", "group__Metrics.html#ga67dce3ba71a80af013453ed580ae3bff", null ],
-    [ "poisson_neg_likelihood_loss", "group__Metrics.html#ga4a9e84afea4023e123e85fc06c746541", null ],
-    [ "poisson_neg_likelihood_loss", "group__Metrics.html#gaea44b249373f16e3eab3dc0ad6c5e15f", null ],
-    [ "r2_score", "group__Metrics.html#gab2d9413781c12cbbc109f27a29e64c94", null ],
-    [ "r2_score", "group__Metrics.html#ga6e7d665d904a6723389aa59843349e84", null ]
+    [ "gaussian_neg_likelihood_loss", "group__Metrics.html#ga3700933fe3460c959c8c258c35253bfc", null ],
+    [ "mean_absolute_error", "group__Metrics.html#ga9e3d0de50929fcf262b1408963921c9c", null ],
+    [ "mean_absolute_error", "group__Metrics.html#gab03ed83f3485b1f9bd46ebabafa71cc1", null ],
+    [ "mean_absolute_percentage_error", "group__Metrics.html#gaf72b10bf40825580bf73ff6afe5a10e8", null ],
+    [ "mean_absolute_percentage_error", "group__Metrics.html#gaf14b96edb44e19000827e932c2caf1ad", null ],
+    [ "mean_squared_error", "group__Metrics.html#gad735d45692f174d15fd1d3f64f2ff934", null ],
+    [ "mean_squared_error", "group__Metrics.html#ga8fdd0d0b6a83d4426d3fbe090e817438", null ],
+    [ "mean_squared_log_error", "group__Metrics.html#ga661e62a6976843e2cfa2bfd7d653983a", null ],
+    [ "mean_squared_log_error", "group__Metrics.html#ga7dee3355c1c7ff7556f9e701fff13aa6", null ],
+    [ "poisson_log_neg_likelihood_loss", "group__Metrics.html#ga6f5357e8f72dddcfe97c7af2654eeef9", null ],
+    [ "poisson_neg_likelihood_loss", "group__Metrics.html#ga8f593414ce5572e17df66088b362cae3", null ],
+    [ "poisson_neg_likelihood_loss", "group__Metrics.html#ga1dfaa322514086318ecb2b15bad28c97", null ],
+    [ "r2_score", "group__Metrics.html#ga8d7f541d4aded411f854bf009de49069", null ],
+    [ "r2_score", "group__Metrics.html#ga9edc3e4e14928efb07be3c69fb7987e7", null ]
 ];

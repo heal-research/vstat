@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>vstat: Class List</title>
+<title>vstat: compensated_sum&lt; T &gt; Struct Template Reference</title>
 <!--BEGIN PROJECT_ICON-->
 <link rel="icon" href="$projecticon" type="image/x-icon" />
 <!--END PROJECT_ICON-->
@@ -88,7 +88,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('annotated.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('structVSTAT__NAMESPACE_1_1compensated__sum.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -114,24 +114,28 @@ $(document).ready(function(){initNavTree('annotated.html',''); initResizable(); 
 </div>
 
 <div class="header">
-  <div class="headertitle"><div class="title">Class List</div></div>
+  <div class="summary">
+<a href="structVSTAT__NAMESPACE_1_1compensated__sum-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">compensated_sum&lt; T &gt; Struct Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock">Here are the classes, structs, unions and interfaces with brief descriptions:</div><div class="directory">
-<div class="levels">[detail level <span onclick="javascript:toggleLevel(1);">1</span><span onclick="javascript:toggleLevel(2);">2</span>]</div><table class="directory">
-<tr id="row_0_" class="even"><td class="entry"><span style="width:0px;display:inline-block;">&#160;</span><span id="arr_0_" class="arrow" onclick="toggleFolder('0_')">&#9660;</span><span class="icona"><span class="icon">N</span></span><b>VSTAT_NAMESPACE</b></td><td class="desc"></td></tr>
-<tr id="row_0_0_" class="odd"><td class="entry"><span style="width:32px;display:inline-block;">&#160;</span><span class="icona"><span class="icon">C</span></span><a class="el" href="structVSTAT__NAMESPACE_1_1bivariate__accumulator.html" target="_self">bivariate_accumulator</a></td><td class="desc">Bivariate accumulator object </td></tr>
-<tr id="row_0_1_" class="even"><td class="entry"><span style="width:32px;display:inline-block;">&#160;</span><span class="icona"><span class="icon">C</span></span><a class="el" href="structVSTAT__NAMESPACE_1_1bivariate__statistics.html" target="_self">bivariate_statistics</a></td><td class="desc">Bivariate statistics </td></tr>
-<tr id="row_0_2_" class="odd"><td class="entry"><span style="width:32px;display:inline-block;">&#160;</span><span class="icona"><span class="icon">C</span></span><a class="el" href="structVSTAT__NAMESPACE_1_1compensated__sum.html" target="_self">compensated_sum</a></td><td class="desc">Knuth TwoSum compensated accumulator </td></tr>
-<tr id="row_0_3_" class="even"><td class="entry"><span style="width:32px;display:inline-block;">&#160;</span><span class="icona"><span class="icon">C</span></span><a class="el" href="structVSTAT__NAMESPACE_1_1univariate__accumulator.html" target="_self">univariate_accumulator</a></td><td class="desc">Univariate accumulator object </td></tr>
-<tr id="row_0_4_" class="odd"><td class="entry"><span style="width:32px;display:inline-block;">&#160;</span><span class="icona"><span class="icon">C</span></span><a class="el" href="structVSTAT__NAMESPACE_1_1univariate__statistics.html" target="_self">univariate_statistics</a></td><td class="desc">Univariate statistics </td></tr>
-</table>
-</div><!-- directory -->
+
+<p><code>#include &lt;<a class="el" href="compensated__sum_8hpp_source.html">compensated_sum.hpp</a>&gt;</code></p>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename T&gt;<br />
+struct VSTAT_NAMESPACE::compensated_sum&lt; T &gt;</div><p>Knuth TwoSum compensated accumulator. </p>
+<p>Captures the exact rounding error of each addition via eve::two_add, yielding significantly better precision than naive summation for large sequences of double values. Has no meaningful effect for float.</p>
+<p>Works with both scalar floating-point types and eve::wide&lt;T&gt;.</p>
+<p>Usage: compensated_sum&lt;double&gt; s; for (auto x : data) s(x); double result = s.value(); </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
+<li>/home/runner/work/vstat/vstat/include/vstat/<a class="el" href="compensated__sum_8hpp_source.html">compensated_sum.hpp</a></li>
+</ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
+    <li class="navelem"><b>VSTAT_NAMESPACE</b></li><li class="navelem"><a class="el" href="structVSTAT__NAMESPACE_1_1compensated__sum.html">compensated_sum</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['gaussian_5fneg_5flikelihood_5floss_0',['gaussian_neg_likelihood_loss',['../group__Metrics.html#ga53d738d89fa3efe50e358e49b26b5c59',1,'VSTAT_NAMESPACE::metrics']]]
+  ['compensated_5fsum_0',['compensated_sum',['../structVSTAT__NAMESPACE_1_1compensated__sum.html',1,'VSTAT_NAMESPACE']]]
 ];
