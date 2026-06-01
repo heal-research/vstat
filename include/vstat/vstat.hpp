@@ -8,7 +8,6 @@
 #include <functional>
 #include <iterator>
 #include <limits>
-#include <memory>
 #include <numbers>
 
 #include <eve/module/math.hpp>
@@ -495,8 +494,8 @@ inline auto r2_score(I first1, I last1, J first2) noexcept -> double
     univariate_accumulator<wide, stats::sum> wx;
     univariate_accumulator<wide, stats::variance> wy;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
+        wide y_true {first1};
+        wide y_pred {first2};
         wx(eve::sqr(y_true - y_pred));
         wy(y_true);
         detail::advance(s, first1, first2);
@@ -539,9 +538,9 @@ inline auto r2_score(I first1, I last1, J first2, K first3) noexcept -> double
     univariate_accumulator<wide, stats::sum> wx;
     univariate_accumulator<wide, stats::variance> wy;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
-        wide weight {std::to_address(first3)};
+        wide y_true {first1};
+        wide y_pred {first2};
+        wide weight {first3};
         wx(eve::sqr(y_true - y_pred), weight);
         wy(y_true, weight);
         detail::advance(s, first1, first2, first3);
@@ -582,8 +581,8 @@ inline auto mean_squared_error(I first1, I last1, J first2) noexcept -> double
 
     univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
+        wide y_true {first1};
+        wide y_pred {first2};
         we(eve::sqr(y_true - y_pred));
         detail::advance(s, first1, first2);
     }
@@ -616,9 +615,9 @@ inline auto mean_squared_error(I first1, I last1, J first2, K first3) noexcept -
 
     univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
-        wide weight {std::to_address(first3)};
+        wide y_true {first1};
+        wide y_pred {first2};
+        wide weight {first3};
         we(eve::sqr(y_true - y_pred), weight);
         detail::advance(s, first1, first2, first3);
     }
@@ -651,8 +650,8 @@ inline auto mean_squared_log_error(I first1, I last1, J first2) noexcept -> doub
 
     univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
+        wide y_true {first1};
+        wide y_pred {first2};
         we(eve::sqr(eve::log1p(y_true) - eve::log1p(y_pred)));
         detail::advance(s, first1, first2);
     }
@@ -685,9 +684,9 @@ inline auto mean_squared_log_error(I first1, I last1, J first2, K first3) noexce
 
     univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
-        wide weight {std::to_address(first3)};
+        wide y_true {first1};
+        wide y_pred {first2};
+        wide weight {first3};
         we(eve::sqr(eve::log1p(y_true) - eve::log1p(y_pred)), weight);
         detail::advance(s, first1, first2, first3);
     }
@@ -720,8 +719,8 @@ inline auto mean_absolute_error(I first1, I last1, J first2) noexcept -> double
 
     univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
+        wide y_true {first1};
+        wide y_pred {first2};
         we(eve::abs(y_true - y_pred));
         detail::advance(s, first1, first2);
     }
@@ -754,9 +753,9 @@ inline auto mean_absolute_error(I first1, I last1, J first2, K first3) noexcept 
 
     univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
-        wide weight {std::to_address(first3)};
+        wide y_true {first1};
+        wide y_pred {first2};
+        wide weight {first3};
         we(eve::abs(y_true - y_pred), weight);
         detail::advance(s, first1, first2, first3);
     }
@@ -795,8 +794,8 @@ inline auto mean_absolute_percentage_error(I first1, I last1, J first2) noexcept
 
     univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
+        wide y_true {first1};
+        wide y_pred {first2};
         we(eve::abs(y_true - y_pred) / eve::max(eps, eve::abs(y_true)));
         detail::advance(s, first1, first2);
     }
@@ -832,9 +831,9 @@ inline auto mean_absolute_percentage_error(I first1, I last1, J first2, K first3
 
     univariate_accumulator<wide, stats::mean> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
-        wide weight {std::to_address(first3)};
+        wide y_true {first1};
+        wide y_pred {first2};
+        wide weight {first3};
         we(eve::abs(y_true - y_pred) / eve::max(eps, eve::abs(y_true)), weight);
         detail::advance(s, first1, first2, first3);
     }
@@ -868,8 +867,8 @@ inline auto poisson_neg_likelihood_loss(I first1, I last1, J first2) noexcept ->
 
     univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
+        wide y_true {first1};
+        wide y_pred {first2};
         we(y_pred - y_true * eve::log(y_pred) + eve::log_abs_gamma(T {1} + y_true));
         detail::advance(s, first1, first2);
     }
@@ -906,8 +905,8 @@ inline auto poisson_neg_likelihood_loss(I first1, I last1, J first2, K first3) n
 
     univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred = wide {std::to_address(first2)} * wide {std::to_address(first3)};
+        wide y_true {first1};
+        wide y_pred = wide {first2} * wide {first3};
         we(y_pred - y_true * eve::log(y_pred) + eve::log_abs_gamma(T {1} + y_true));
         detail::advance(s, first1, first2, first3);
     }
@@ -945,8 +944,8 @@ inline auto gaussian_neg_likelihood_loss(I first1, I last1, J first2, T sigma) n
 
     univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
+        wide y_true {first1};
+        wide y_pred {first2};
         we(eve::sqr(y_true - y_pred));
         detail::advance(s, first1, first2);
     }
@@ -985,8 +984,8 @@ inline auto poisson_log_neg_likelihood_loss(I first1, I last1, J first2) noexcep
 
     univariate_accumulator<wide, stats::sum> we;
     for (auto i = 0; i < m; i += s) {
-        wide y_true {std::to_address(first1)};
-        wide y_pred {std::to_address(first2)};
+        wide y_true {first1};
+        wide y_pred {first2};
         we(eve::exp(y_pred) - y_true * y_pred + eve::log_abs_gamma(T {1} + y_true));
         detail::advance(s, first1, first2);
     }
