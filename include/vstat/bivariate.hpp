@@ -63,7 +63,8 @@ struct bivariate_accumulator
         sum_y += y * w;
         sum_w += w;
 
-        T f = w / (sum_w * sum_w_old);
+        T denom = sum_w * sum_w_old;
+        T f = eve::if_else(denom != T{0}, w / denom, T{0});
         sum_xx += f * dx * dx;
         sum_yy += f * dy * dy;
         sum_xy += f * dx * dy;

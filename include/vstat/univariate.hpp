@@ -74,7 +74,8 @@ struct univariate_accumulator
             T dx = (sum_w * x) - (sum_x * w);
             sum_x += x;
             sum_w += w;
-            sum_xx += (dx * dx) / (w * sum_w * sum_w_old);
+            T denom = w * sum_w * sum_w_old;
+            sum_xx += eve::if_else(denom != T{0}, (dx * dx) / denom, T{0});
             sum_w_old = sum_w;
         } else if constexpr (Stats == stats::mean) {
             sum_x += x * w;
