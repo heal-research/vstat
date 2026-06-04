@@ -448,6 +448,55 @@ TEST_CASE("weighted covariance", "[correctness]")
 }
 
 
+TEST_CASE("weighted variance zero-weight prefix", "[correctness]")
+{
+    // Regression test: zero-weight observations before any non-zero weight must not
+    // poison sum_xx with NaN via 0/0 in the Welford denominator.
+    auto test = [&]<typename T>() {
+        std::vector<T> x {T{1}, T{2}, T{3}, T{4}, T{5}};
+        std::vector<T> w {T{0}, T{0}, T{1}, T{1}, T{1}};
+
+        auto stats = uv::accumulate<T>(x.begin(), x.end(), w.begin());
+
+        REQUIRE(std::isfinite(stats.variance));
+        REQUIRE(std::isfinite(stats.mean));
+
+        // reference: only the non-zero-weight elements {3,4,5} with equal weight
+        auto ref = uv::accumulate<T>(x.begin() + 2, x.end());
+        REQUIRE(test_util::equal<T>(static_cast<T>(stats.mean),     static_cast<T>(ref.mean),     T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(stats.variance), static_cast<T>(ref.variance), T{1e-5}));
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
+TEST_CASE("weighted covariance zero-weight prefix", "[correctness]")
+{
+    // Regression test: zero-weight observations before any non-zero weight must not
+    // poison sum_xx/sum_yy/sum_xy with NaN via 0/0 in the bivariate Welford update.
+    auto test = [&]<typename T>() {
+        std::vector<T> x {T{1}, T{2}, T{3}, T{4}, T{5}};
+        std::vector<T> y {T{5}, T{4}, T{3}, T{2}, T{1}};
+        std::vector<T> w {T{0}, T{0}, T{1}, T{1}, T{1}};
+
+        auto stats = bv::accumulate<T>(x.begin(), x.end(), y.begin(), w.begin());
+
+        REQUIRE(std::isfinite(stats.covariance));
+        REQUIRE(std::isfinite(stats.variance_x));
+        REQUIRE(std::isfinite(stats.variance_y));
+
+        // reference: only the non-zero-weight elements with equal weight
+        auto ref = bv::accumulate<T>(x.begin() + 2, x.end(), y.begin() + 2);
+        REQUIRE(test_util::equal<T>(static_cast<T>(stats.covariance), static_cast<T>(ref.covariance), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(stats.variance_x), static_cast<T>(ref.variance_x), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(stats.variance_y), static_cast<T>(ref.variance_y), T{1e-5}));
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
 TEST_CASE("poisson_neg_likelihood_loss", "[correctness]")
 {
     std::mt19937 rng {1234};
