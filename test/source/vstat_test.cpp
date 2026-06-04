@@ -497,6 +497,47 @@ TEST_CASE("weighted covariance zero-weight prefix", "[correctness]")
     SECTION("float")  { test.operator()<float>(); }
 }
 
+TEST_CASE("weighted variance all-zero weights", "[correctness]")
+{
+    // When every weight is zero the raw SSR (sum_xx) must be 0, not NaN.
+    // Derived statistics that divide by sum_w (mean, variance) are legitimately
+    // NaN, but the accumulator state itself must be clean so that subsequent
+    // non-zero-weight observations are not affected.
+    auto test = [&]<typename T>() {
+        vstat::univariate_accumulator<T> acc;
+        for (T xi : {T{1}, T{2}, T{3}})
+            acc(xi, T{0});
+
+        auto [sw, sx, sxx] = acc.stats();
+        REQUIRE(sw  == T{0});
+        REQUIRE(sx  == T{0});
+        REQUIRE(sxx == T{0});  // must be 0, not NaN
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
+TEST_CASE("weighted covariance all-zero weights", "[correctness]")
+{
+    // Same property for the bivariate accumulator: sum_xx, sum_yy, sum_xy
+    // must all be 0 (not NaN) after a run of zero-weight observations.
+    auto test = [&]<typename T>() {
+        vstat::bivariate_accumulator<T> acc;
+        for (auto [xi, yi] : std::initializer_list<std::pair<T,T>>{{T{1},T{5}},{T{2},T{4}},{T{3},T{3}}})
+            acc(xi, yi, T{0});
+
+        auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
+        REQUIRE(sw  == T{0});
+        REQUIRE(sxx == T{0});  // must be 0, not NaN
+        REQUIRE(syy == T{0});
+        REQUIRE(sxy == T{0});
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
 TEST_CASE("poisson_neg_likelihood_loss", "[correctness]")
 {
     std::mt19937 rng {1234};
