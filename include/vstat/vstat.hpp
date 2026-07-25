@@ -339,10 +339,6 @@ inline auto accumulate(I first1,
     \brief Accumulates \f$f(a,b)\f$ over two paired sequences, skipping (zero
    weight) any position where either input is non-finite.
 
-    The finiteness check happens on the already-loaded SIMD lanes, so this
-   costs one extra compare+select per chunk over the unmasked `accumulate` --
-   no extra pass over the data and no buffer.
-
     \tparam T The scalar value type underlying the `eve::wide<T>` SIMD type
    used to compute the stats
     \tparam Stats Which stats to compute
@@ -375,22 +371,11 @@ inline auto accumulate_finite(I first1, I last1, J first2, F&& f = F {}) noexcep
     for (size_t i = 0; i < m; i += s) {
         wide a {first1};
         wide b {first2};
-        // is_finite(x) is defined as is_not_nan(x - x) (per eve's own docs),
-        // so is_finite(a) && is_finite(b) is is_eqz(a-a) && is_eqz(b-b) --
-        // one is_finite call and no logical-and, same result: the sum is 0
-        // iff both are finite, NaN/Inf propagates through it otherwise.
-        auto finite = eve::is_finite((a - a) + (b - b));
+        auto finite = eve::is_finite(a) && eve::is_finite(b);
         if (eve::all(finite)) [[likely]] {
-            // Common case: the whole chunk is finite. Take the same cheap
-            // path the unmasked accumulate uses (no is_finite-driven select,
-            // no skip-count bookkeeping) -- the unweighted operator() with
-            // weight-of-1-per-lane is state-compatible with the weighted one
-            // below, so mixing them across chunks is safe.
             acc(std::invoke(f, a, b));
         } else {
-            // Zeroing only the weight is not enough: NaN/Inf * 0 == NaN, so a
-            // non-finite value would still poison the accumulator through the
-            // projection even at weight 0. Sanitize the values themselves too.
+            // sanitize values, not just weight: NaN/Inf * 0 == NaN
             wide sa = eve::if_else(finite, a, wide {0});
             wide sb = eve::if_else(finite, b, wide {0});
             wide w = eve::if_else(finite, wide {1}, wide {0});
@@ -448,13 +433,9 @@ inline auto accumulate_finite(I first1, I last1, J first2, K first3, F&& f = F {
         // iff both are finite, NaN/Inf propagates through it otherwise.
         auto finite = eve::is_finite((a - a) + (b - b));
         if (eve::all(finite)) [[likely]] {
-            // Common case: no masking/sanitizing needed, just the plain
-            // caller-weighted accumulate (same cost as the unmasked weighted
-            // metric functions already pay).
             acc(std::invoke(f, a, b), weight);
         } else {
-            // See the unweighted overload above: zeroing only the weight
-            // isn't enough, NaN/Inf * 0 == NaN. Sanitize the values too.
+            // sanitize values, not just weight: NaN/Inf * 0 == NaN
             wide sa = eve::if_else(finite, a, wide {0});
             wide sb = eve::if_else(finite, b, wide {0});
             wide w = eve::if_else(finite, weight, wide {0});

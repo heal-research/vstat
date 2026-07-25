@@ -584,12 +584,71 @@ TEST_CASE("accumulate_finite skips non-finite pairs", "[correctness]")
     SECTION("float")  { test.operator()<float>(); }
 }
 
+TEST_CASE("weighted accumulate, stats::variance, scattered zero weights at wide scale", "[correctness]")
+{
+    // scattered (not prefix, not all-zero) zero weights, count_medium so
+    // the wide path is exercised, across multiple chunks/lanes
+    std::mt19937 rng {1234};
+
+    auto test = [&]<typename T>(int n, T eps) {
+        auto y = test_util::generate<T>(rng, n);
+        std::vector<T> w(n, T{1});
+        w[0] = T{0};
+        w[n / 2] = T{0};
+        w[n - 1] = T{0};
+
+        auto st = uv::accumulate<T, vstat::stats::variance>(y.begin(), y.end(), w.begin());
+
+        std::vector<T> yf;
+        for (int i = 0; i < n; ++i) {
+            if (w[i] != T{0}) { yf.push_back(y[i]); }
+        }
+        auto ref = uv::accumulate<T, vstat::stats::variance>(yf.begin(), yf.end());
+
+        INFO("st.variance = " << st.variance << ", ref.variance = " << ref.variance);
+        REQUIRE(std::isfinite(st.variance));
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.variance), static_cast<T>(ref.variance), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-5); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-3); }
+}
+
+TEST_CASE("accumulate_finite with stats::variance", "[correctness]")
+{
+    std::mt19937 rng {1234};
+
+    auto test = [&]<typename T>(int n, T eps) {
+        auto x = test_util::generate<T>(rng, n);
+        auto y = test_util::generate<T>(rng, n);
+        // inject non-finite values spread across likely-multiple SIMD chunks
+        x[0] = std::numeric_limits<T>::quiet_NaN();
+        x[n / 2] = std::numeric_limits<T>::infinity();
+        x[n - 1] = -std::numeric_limits<T>::infinity();
+
+        auto [st, skipped] = uv::accumulate_finite<T, vstat::stats::variance>(
+            y.begin(), y.end(), x.begin(), [](auto a, auto /*b*/) { return a; });
+
+        REQUIRE(skipped == 3UL);
+
+        std::vector<T> yf;
+        for (int i = 0; i < n; ++i) {
+            if (std::isfinite(x[i])) { yf.push_back(y[i]); }
+        }
+        auto ref = uv::accumulate<T, vstat::stats::variance>(yf.begin(), yf.end());
+
+        REQUIRE(std::isfinite(st.variance));
+        INFO("st.variance = " << st.variance << ", ref.variance = " << ref.variance);
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.variance), static_cast<T>(ref.variance), eps));
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.mean), static_cast<T>(ref.mean), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-5); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-3); }
+}
+
 TEST_CASE("accumulate_finite all-non-finite", "[correctness]")
 {
-    // Degenerate case: every pair non-finite. Must not crash or poison state
-    // with NaN -- skipped count equals n, accumulated stats are the clean
-    // zero-weight state (mean/variance legitimately NaN via 0/0, matching the
-    // existing all-zero-weight accumulator contract).
     auto test = [&]<typename T>() {
         std::vector<T> x {std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::infinity(), T{1}};
         std::vector<T> y {T{1}, T{2}, std::numeric_limits<T>::quiet_NaN()};
@@ -884,9 +943,6 @@ TEST_CASE("benchmarks", "[performance]")
 
 TEST_CASE("masked vs unmasked mean squared error", "[performance]")
 {
-    // Isolates whether folding an is_finite mask into the weight (skip-non-
-    // finite-rows via accumulate_finite) costs anything over the existing
-    // unmasked path, on all-finite data (so both compute the same result).
     std::mt19937 rng {1234};
 
     nb::Bench bench;
