@@ -9,6 +9,7 @@
 #include <iterator>
 #include <limits>
 #include <numbers>
+#include <type_traits>
 
 #include <eve/module/math.hpp>
 #include <eve/module/special.hpp>
@@ -19,6 +20,17 @@
 
 namespace VSTAT_NAMESPACE
 {
+
+/*!
+    \brief Controls how a non-finite (NaN/Inf) input is handled.
+
+    - propagate (default): a non-finite value poisons the whole result, same
+      as the rest of this library.
+    - omit: positions where the relevant input(s) are non-finite are
+      skipped (zero-weighted) instead, and the function additionally
+      returns the count of skipped positions.
+*/
+enum class nan_policy { propagate, omit };
 
 namespace detail
 {
@@ -47,7 +59,7 @@ auto inline advance(Distance d, Iters&... iters) -> void
     (std::advance(iters, d), ...);
 }
 
-// default binary projection for accumulate_finite: keep the first sequence's value
+// default binary projection: keep the first sequence's value
 struct first_of_pair {
     template<typename A, typename B>
     constexpr auto operator()(A a, B /*b*/) const noexcept { return a; }
@@ -181,6 +193,12 @@ inline auto accumulate(I first1, I last1, J first2, F&& f = F {}) noexcept
 
     \tparam T The scalar value type underlying the `eve::wide<T>` SIMD type used
    to compute the stats
+    \tparam Stats Which stats to compute
+    \tparam Policy `nan_policy::propagate` (default): a non-finite projected
+   value poisons the whole result, like the rest of this library.
+   `nan_policy::omit`: positions where either raw input is non-finite are
+   skipped (zero-weighted) instead, and the count of skipped pairs is
+   additionally returned.
     \tparam BinaryOp Binary projection \f$op(a,b) \to c\f$
     \tparam F1 Unary projection \f$f(x_1) \to a\f$
     \tparam F2 Unary projection \f$f(x_2) \to b\f$
@@ -192,9 +210,14 @@ inline auto accumulate(I first1, I last1, J first2, F&& f = F {}) noexcept
    f_2(\cdot))\f$ to a scalar value
     \param f1     A projection mapping `std::iter_value_t<I>` to a scalar value
     \param f2     A projection mapping `std::iter_value_t<J>` to a scalar value
+
+    \return `nan_policy::propagate`: the accumulated statistics.
+   `nan_policy::omit`: the accumulated statistics over finite pairs, and the
+   count of skipped (non-finite) pairs.
 */
 template<std::floating_point T,
          stats Stats = stats::variance,
+         nan_policy Policy = nan_policy::propagate,
          std::random_access_iterator I,
          std::random_access_iterator J,
          typename BinaryOp,
@@ -212,7 +235,8 @@ inline auto accumulate(I first1,
                        J first2,
                        BinaryOp&& op = BinaryOp {},
                        F1&& f1 = F1 {},
-                       F2&& f2 = F2 {}) noexcept -> univariate_statistics
+                       F2&& f2 = F2 {}) noexcept
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<univariate_statistics, std::size_t>, univariate_statistics>
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -225,55 +249,79 @@ inline auto accumulate(I first1,
             std::forward<BinaryOp>(op), std::invoke(std::forward<F1>(f1), a), std::invoke(std::forward<F2>(f2), b));
     };
 
-    if (n < s) {
-        univariate_accumulator<T, Stats> scalar_acc;
-        for (; first1 < last1; ++first1, ++first2) {
-            scalar_acc(f(*first1, *first2));
+    if constexpr (Policy == nan_policy::propagate) {
+        if (n < s) {
+            univariate_accumulator<T, Stats> scalar_acc;
+            for (; first1 < last1; ++first1, ++first2) {
+                scalar_acc(f(*first1, *first2));
+            }
+            return univariate_statistics(scalar_acc);
         }
-        return univariate_statistics(scalar_acc);
-    }
 
-    univariate_accumulator<wide, Stats> acc;
-    for (size_t i = 0; i < m; i += s) {
-        acc(detail::load<wide>(first1, first2, f));
-        detail::advance(s, first1, first2);
-    }
-
-    // use a scalar accumulator to gather the remaining values
-    if (m < n) {
-        auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
-        for (; first1 < last1; ++first1, ++first2) {
-            scalar_acc(f(*first1, *first2));
+        univariate_accumulator<wide, Stats> acc;
+        for (size_t i = 0; i < m; i += s) {
+            acc(detail::load<wide>(first1, first2, f));
+            detail::advance(s, first1, first2);
         }
-        return univariate_statistics(scalar_acc);
+
+        // use a scalar accumulator to gather the remaining values
+        if (m < n) {
+            auto [sw, sx, sxx] = acc.stats();
+            auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
+            for (; first1 < last1; ++first1, ++first2) {
+                scalar_acc(f(*first1, *first2));
+            }
+            return univariate_statistics(scalar_acc);
+        }
+        return univariate_statistics(acc);
+    } else {
+        univariate_accumulator<wide, Stats> acc;
+        wide skipped {0};
+        for (size_t i = 0; i < m; i += s) {
+            wide a {first1};
+            wide b {first2};
+            // is_finite(x) is is_not_nan(x - x) (per eve's docs): one
+            // is_finite call on (a-a)+(b-b) instead of two calls + a
+            // logical-and.
+            auto finite = eve::is_finite((a - a) + (b - b));
+            if (eve::all(finite)) [[likely]] {
+                acc(f(a, b));
+            } else {
+                // sanitize values, not just weight: NaN/Inf * 0 == NaN
+                wide sa = eve::if_else(finite, a, wide {0});
+                wide sb = eve::if_else(finite, b, wide {0});
+                wide w = eve::if_else(finite, wide {1}, wide {0});
+                acc(f(sa, sb), w);
+                skipped += eve::if_else(finite, wide {0}, wide {1});
+            }
+            detail::advance(s, first1, first2);
+        }
+
+        auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
+        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+        for (; first1 < last1; ++first1, ++first2) {
+            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+            T sa = finite ? *first1 : T {0};
+            T sb = finite ? *first2 : T {0};
+            se(f(sa, sb), finite ? T {1} : T {0});
+            skippedCount += finite ? 0UL : 1UL;
+        }
+        return {univariate_statistics(se), skippedCount};
     }
-    return univariate_statistics(acc);
 }
 
 /*!
     \ingroup Univariate
 
-    \brief Accumulates over the projected values from applying `BinaryOp` on the
-   input sequences, with weights
+    \brief Weighted variant of `accumulate` (BinaryOp overload): folds a
+   caller-supplied weight in, and (under `nan_policy::omit`) into the finite
+   mask (`w' = finite ? w : 0`) instead of a flat 0/1 weight.
 
-    \tparam T The scalar value type underlying the `eve::wide<T>` SIMD type used
-   to compute the stats
-    \tparam BinaryOp Binary projection \f$op(a,b) \to c\f$
-    \tparam F1 Unary projection \f$f(x_1) \to a\f$
-    \tparam F2 Unary projection \f$f(x_2) \to b\f$
-
-    \param first1 The begin iterator for the first sequence
-    \param last1  The end iterator for the first sequence
-    \param first2 The begin iterator for the second sequence
-    \param first3 The begin iterator for the third sequence (weights)
-    \param op     A binary projection mapping a tuple \f$(f_1(\bullet),
-   f_2(\bullet))\f$ to a scalar value
-    \param f1     A projection mapping `std::iter_value_t<I>` to a scalar value
-    \param f2     A projection mapping `std::iter_value_t<J>` to a scalar value
+    \param first3 The begin iterator for the caller-supplied weights
 */
 template<std::floating_point T,
          stats Stats = stats::variance,
+         nan_policy Policy = nan_policy::propagate,
          std::random_access_iterator I,
          std::random_access_iterator J,
          std::random_access_iterator K,
@@ -294,7 +342,8 @@ inline auto accumulate(I first1,
                        K first3,
                        BinaryOp&& op = BinaryOp {},
                        F1&& f1 = F1 {},
-                       F2&& f2 = F2 {}) noexcept -> univariate_statistics
+                       F2&& f2 = F2 {}) noexcept
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<univariate_statistics, std::size_t>, univariate_statistics>
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -307,154 +356,63 @@ inline auto accumulate(I first1,
             std::forward<BinaryOp>(op), std::invoke(std::forward<F1>(f1), a), std::invoke(std::forward<F2>(f2), b));
     };
 
-    if (n < s) {
-        univariate_accumulator<T, Stats> scalar_acc;
+    if constexpr (Policy == nan_policy::propagate) {
+        if (n < s) {
+            univariate_accumulator<T, Stats> scalar_acc;
+            for (; first1 < last1; ++first1, ++first2, ++first3) {
+                scalar_acc(f(*first1, *first2), *first3);
+            }
+            return univariate_statistics(scalar_acc);
+        }
+
+        univariate_accumulator<wide, Stats> acc;
+        for (size_t i = 0; i < m; i += s) {
+            acc(detail::load<wide>(first1, first2, f), wide {std::to_address(first3)});
+            detail::advance(s, first1, first2, first3);
+        }
+
+        // use a scalar accumulator to gather the remaining values
+        if (m < n) {
+            auto [sw, sx, sxx] = acc.stats();
+            auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
+            for (; first1 < last1; ++first1, ++first2, ++first3) {
+                scalar_acc(f(*first1, *first2), *first3);
+            }
+            return univariate_statistics(scalar_acc);
+        }
+        return univariate_statistics(acc);
+    } else {
+        univariate_accumulator<wide, Stats> acc;
+        wide skipped {0};
+        for (size_t i = 0; i < m; i += s) {
+            wide a {first1};
+            wide b {first2};
+            wide weight {first3};
+            auto finite = eve::is_finite((a - a) + (b - b));
+            if (eve::all(finite)) [[likely]] {
+                acc(f(a, b), weight);
+            } else {
+                // sanitize values, not just weight: NaN/Inf * 0 == NaN
+                wide sa = eve::if_else(finite, a, wide {0});
+                wide sb = eve::if_else(finite, b, wide {0});
+                wide w = eve::if_else(finite, weight, wide {0});
+                acc(f(sa, sb), w);
+                skipped += eve::if_else(finite, wide {0}, wide {1});
+            }
+            detail::advance(s, first1, first2, first3);
+        }
+
+        auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
+        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2, ++first3) {
-            scalar_acc(f(*first1, *first2), *first3);
+            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+            T sa = finite ? *first1 : T {0};
+            T sb = finite ? *first2 : T {0};
+            se(f(sa, sb), finite ? *first3 : T {0});
+            skippedCount += finite ? 0UL : 1UL;
         }
-        return univariate_statistics(scalar_acc);
+        return {univariate_statistics(se), skippedCount};
     }
-
-    univariate_accumulator<wide, Stats> acc;
-    for (size_t i = 0; i < m; i += s) {
-        acc(detail::load<wide>(first1, first2, f), wide {std::to_address(first3)});
-        detail::advance(s, first1, first2, first3);
-    }
-
-    // use a scalar accumulator to gather the remaining values
-    if (m < n) {
-        auto [sw, sx, sxx] = acc.stats();
-        auto scalar_acc = univariate_accumulator<T, Stats>::load_state(sw, sx, sxx);
-        for (; first1 < last1; ++first1, ++first2, ++first3) {
-            scalar_acc(f(*first1, *first2), *first3);
-        }
-        return univariate_statistics(scalar_acc);
-    }
-    return univariate_statistics(acc);
-}
-
-/*!
-    \ingroup Univariate
-
-    \brief Accumulates \f$f(a,b)\f$ over two paired sequences, skipping (zero
-   weight) any position where either input is non-finite.
-
-    \tparam T The scalar value type underlying the `eve::wide<T>` SIMD type
-   used to compute the stats
-    \tparam Stats Which stats to compute
-    \tparam F Binary projection \f$f(a,b) \to c\f$ accumulated for finite pairs
-
-    \param first1 The begin iterator for the first sequence (checked for finiteness)
-    \param last1  The end iterator for the first sequence
-    \param first2 The begin iterator for the second sequence (checked for finiteness)
-    \param f      A binary projection mapping \f$(a, b)\f$ to the scalar value
-   accumulated for that (finite) pair
-
-    \return The accumulated statistics over finite pairs, and the count of
-   skipped (non-finite) pairs.
-*/
-template<std::floating_point T,
-         stats Stats = stats::variance,
-         std::random_access_iterator I,
-         std::random_access_iterator J,
-         typename F = detail::first_of_pair>
-    requires concepts::arithmetic_projection<F, std::iter_value_t<I>, std::iter_value_t<J>>
-inline auto accumulate_finite(I first1, I last1, J first2, F&& f = F {}) noexcept -> std::pair<univariate_statistics, std::size_t>
-{
-    using wide = eve::wide<T>;
-    auto constexpr s {wide::size()};
-    auto const n {std::distance(first1, last1)};
-    auto const m = n - n % s;
-
-    univariate_accumulator<wide, Stats> acc;
-    wide skipped {0};
-    for (size_t i = 0; i < m; i += s) {
-        wide a {first1};
-        wide b {first2};
-        auto finite = eve::is_finite(a) && eve::is_finite(b);
-        if (eve::all(finite)) [[likely]] {
-            acc(std::invoke(f, a, b));
-        } else {
-            // sanitize values, not just weight: NaN/Inf * 0 == NaN
-            wide sa = eve::if_else(finite, a, wide {0});
-            wide sb = eve::if_else(finite, b, wide {0});
-            wide w = eve::if_else(finite, wide {1}, wide {0});
-            acc(std::invoke(f, sa, sb), w);
-            skipped += eve::if_else(finite, wide {0}, wide {1});
-        }
-        detail::advance(s, first1, first2);
-    }
-
-    auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
-    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
-    for (; first1 < last1; ++first1, ++first2) {
-        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-        T sa = finite ? *first1 : T {0};
-        T sb = finite ? *first2 : T {0};
-        se(std::invoke(f, sa, sb), finite ? T {1} : T {0});
-        skippedCount += finite ? 0UL : 1UL;
-    }
-    return {univariate_statistics(se), skippedCount};
-}
-
-/*!
-    \ingroup Univariate
-
-    \brief Weighted variant of `accumulate_finite`: folds a caller-supplied
-   weight into the finite mask (`w' = finite ? w : 0`) instead of a flat 0/1
-   weight.
-
-    \param first3 The begin iterator for the caller-supplied weights
-*/
-template<std::floating_point T,
-         stats Stats = stats::variance,
-         std::random_access_iterator I,
-         std::random_access_iterator J,
-         std::random_access_iterator K,
-         typename F = detail::first_of_pair>
-    requires std::is_arithmetic_v<std::iter_value_t<K>>
-    && concepts::arithmetic_projection<F, std::iter_value_t<I>, std::iter_value_t<J>>
-inline auto accumulate_finite(I first1, I last1, J first2, K first3, F&& f = F {}) noexcept -> std::pair<univariate_statistics, std::size_t>
-{
-    using wide = eve::wide<T>;
-    auto constexpr s {wide::size()};
-    auto const n {std::distance(first1, last1)};
-    auto const m = n - n % s;
-
-    univariate_accumulator<wide, Stats> acc;
-    wide skipped {0};
-    for (size_t i = 0; i < m; i += s) {
-        wide a {first1};
-        wide b {first2};
-        wide weight {first3};
-        // is_finite(x) is defined as is_not_nan(x - x) (per eve's own docs),
-        // so is_finite(a) && is_finite(b) is is_eqz(a-a) && is_eqz(b-b) --
-        // one is_finite call and no logical-and, same result: the sum is 0
-        // iff both are finite, NaN/Inf propagates through it otherwise.
-        auto finite = eve::is_finite((a - a) + (b - b));
-        if (eve::all(finite)) [[likely]] {
-            acc(std::invoke(f, a, b), weight);
-        } else {
-            // sanitize values, not just weight: NaN/Inf * 0 == NaN
-            wide sa = eve::if_else(finite, a, wide {0});
-            wide sb = eve::if_else(finite, b, wide {0});
-            wide w = eve::if_else(finite, weight, wide {0});
-            acc(std::invoke(f, sa, sb), w);
-            skipped += eve::if_else(finite, wide {0}, wide {1});
-        }
-        detail::advance(s, first1, first2, first3);
-    }
-
-    auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
-    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
-    for (; first1 < last1; ++first1, ++first2, ++first3) {
-        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-        T sa = finite ? *first1 : T {0};
-        T sb = finite ? *first2 : T {0};
-        se(std::invoke(f, sa, sb), finite ? *first3 : T {0});
-        skippedCount += finite ? 0UL : 1UL;
-    }
-    return {univariate_statistics(se), skippedCount};
 }
 }  // namespace univariate
 
@@ -505,47 +463,104 @@ namespace bivariate
     sample covariance:      -2.33333
     \endcode
 */
+/*!
+    \ingroup Bivariate
+
+    \tparam Policy `nan_policy::propagate` (default): a non-finite value
+   poisons the whole result. `nan_policy::omit`: positions where either raw
+   input is non-finite are skipped (zero-weighted) instead, and the count of
+   skipped pairs is additionally returned.
+
+    \return `nan_policy::propagate`: the accumulated bivariate statistics.
+   `nan_policy::omit`: the accumulated bivariate statistics over finite
+   pairs, and the count of skipped (non-finite) pairs.
+*/
 template<std::floating_point T,
+         nan_policy Policy = nan_policy::propagate,
          std::random_access_iterator I,
          std::random_access_iterator J,
          typename F1 = std::identity,
          typename F2 = std::identity>
     requires concepts::arithmetic_projection<F1, std::iter_value_t<I>>
     and concepts::arithmetic_projection<F2, std::iter_value_t<J>>
-inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1 {}, F2&& f2 = F2 {})
+inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1 {}, F2&& f2 = F2 {}) noexcept
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<bivariate_statistics, std::size_t>, bivariate_statistics>
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n {std::distance(first1, last1)};
     auto const m = n - n % s;
 
-    if (n < s) {
-        bivariate_accumulator<T> scalar_acc;
-        for (; first1 < last1; ++first1, ++first2) {
-            scalar_acc(std::invoke(std::forward<F1>(f1), *first1), std::invoke(std::forward<F2>(f2), *first2));
+    if constexpr (Policy == nan_policy::propagate) {
+        if (n < s) {
+            bivariate_accumulator<T> scalar_acc;
+            for (; first1 < last1; ++first1, ++first2) {
+                scalar_acc(std::invoke(std::forward<F1>(f1), *first1), std::invoke(std::forward<F2>(f2), *first2));
+            }
+            return bivariate_statistics(scalar_acc);
         }
-        return bivariate_statistics(scalar_acc);
-    }
 
-    bivariate_accumulator<wide> acc;
-    for (size_t i = 0; i < m; i += s) {
-        acc(detail::load<wide>(first1, std::forward<F1>(f1)), detail::load<wide>(first2, std::forward<F2>(f2)));
-        detail::advance(s, first1, first2);
-    }
+        bivariate_accumulator<wide> acc;
+        for (size_t i = 0; i < m; i += s) {
+            acc(detail::load<wide>(first1, std::forward<F1>(f1)), detail::load<wide>(first2, std::forward<F2>(f2)));
+            detail::advance(s, first1, first2);
+        }
 
-    if (m < n) {
+        if (m < n) {
+            auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
+            auto scalar_acc = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
+            for (; first1 < last1; ++first1, ++first2) {
+                scalar_acc(std::invoke(std::forward<F1>(f1), *first1), std::invoke(std::forward<F2>(f2), *first2));
+            }
+            return bivariate_statistics(scalar_acc);
+        }
+
+        return bivariate_statistics(acc);
+    } else {
+        bivariate_accumulator<wide> acc;
+        wide skipped {0};
+        for (size_t i = 0; i < m; i += s) {
+            wide a {first1};
+            wide b {first2};
+            auto finite = eve::is_finite((a - a) + (b - b));
+            if (eve::all(finite)) [[likely]] {
+                // Match plain accumulate's call shape (2-arg unweighted),
+                // which delegates to the weighted overload with w=1 --
+                // keeps one source of truth for the Welford update.
+                acc(std::invoke(f1, a), std::invoke(f2, b));
+            } else {
+                wide sa = eve::if_else(finite, a, wide {0});
+                wide sb = eve::if_else(finite, b, wide {0});
+                wide w  = eve::if_else(finite, wide {1}, wide {0});
+                acc(std::invoke(f1, sa), std::invoke(f2, sb), w);
+                skipped += eve::if_else(finite, wide {0}, wide {1});
+            }
+            detail::advance(s, first1, first2);
+        }
+
         auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
-        auto scalar_acc = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
+        auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
+        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2) {
-            scalar_acc(std::invoke(std::forward<F1>(f1), *first1), std::invoke(std::forward<F2>(f2), *first2));
+            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+            T sa = finite ? *first1 : T {0};
+            T sb = finite ? *first2 : T {0};
+            be(std::invoke(f1, sa), std::invoke(f2, sb), finite ? T {1} : T {0});
+            skippedCount += finite ? 0UL : 1UL;
         }
-        return bivariate_statistics(scalar_acc);
+        return {bivariate_statistics(be), skippedCount};
     }
-
-    return bivariate_statistics(acc);
 }
 
+/*!
+    \ingroup Bivariate
+
+    \brief Weighted variant of `accumulate`: folds a caller-supplied weight
+   in, and (under `nan_policy::omit`) into the finite mask
+   (`w' = finite ? w : 0`).
+*/
 template<std::floating_point T,
+         nan_policy Policy = nan_policy::propagate,
          std::random_access_iterator I,
          std::random_access_iterator J,
          std::random_access_iterator K,
@@ -555,151 +570,72 @@ template<std::floating_point T,
     and concepts::arithmetic_projection<F2, std::iter_value_t<J>> and std::is_arithmetic_v<std::iter_value_t<K>>
 inline auto accumulate(
     I first1, I last1, J first2, K first3, F1&& f1 = F1 {}, F2&& f2 = F2 {}) noexcept
-    -> bivariate_statistics
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<bivariate_statistics, std::size_t>, bivariate_statistics>
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
     auto const n = std::distance(first1, last1);
     auto const m = n - n % s;
 
-    if (n < s) {
-        bivariate_accumulator<T> scalar_acc;
-        for (; first1 < last1; ++first1, ++first2, ++first3) {
-            scalar_acc(
-                std::invoke(std::forward<F1>(f1), *first1), std::invoke(std::forward<F2>(f2), *first2), *first3);
+    if constexpr (Policy == nan_policy::propagate) {
+        if (n < s) {
+            bivariate_accumulator<T> scalar_acc;
+            for (; first1 < last1; ++first1, ++first2, ++first3) {
+                scalar_acc(
+                    std::invoke(std::forward<F1>(f1), *first1), std::invoke(std::forward<F2>(f2), *first2), *first3);
+            }
+            return bivariate_statistics(scalar_acc);
         }
-        return bivariate_statistics(scalar_acc);
-    }
 
-    bivariate_accumulator<wide> acc;
-    for (size_t i = 0; i < m; i += s) {
-        acc(detail::load<wide>(first1, std::forward<F1>(f1)),
-            detail::load<wide>(first2, std::forward<F2>(f2)),
-            wide {first3});
-        detail::advance(s, first1, first2, first3);
-    }
+        bivariate_accumulator<wide> acc;
+        for (size_t i = 0; i < m; i += s) {
+            acc(detail::load<wide>(first1, std::forward<F1>(f1)),
+                detail::load<wide>(first2, std::forward<F2>(f2)),
+                wide {first3});
+            detail::advance(s, first1, first2, first3);
+        }
 
-    if (m < n) {
+        if (m < n) {
+            auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
+            auto scalar_acc = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
+            for (; first1 < last1; ++first1, ++first2, ++first3) {
+                scalar_acc(std::invoke(std::forward<F1>(f1), *first1), std::invoke(std::forward<F2>(f2), *first2), *first3);
+            }
+            return bivariate_statistics(scalar_acc);
+        }
+        return bivariate_statistics(acc);
+    } else {
+        bivariate_accumulator<wide> acc;
+        wide skipped {0};
+        for (size_t i = 0; i < m; i += s) {
+            wide a {first1};
+            wide b {first2};
+            wide weight {first3};
+            auto finite = eve::is_finite((a - a) + (b - b));
+            if (eve::all(finite)) [[likely]] {
+                acc(std::invoke(f1, a), std::invoke(f2, b), weight);
+            } else {
+                wide sa = eve::if_else(finite, a, wide {0});
+                wide sb = eve::if_else(finite, b, wide {0});
+                wide w  = eve::if_else(finite, weight, wide {0});
+                acc(std::invoke(f1, sa), std::invoke(f2, sb), w);
+                skipped += eve::if_else(finite, wide {0}, wide {1});
+            }
+            detail::advance(s, first1, first2, first3);
+        }
+
         auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
-        auto scalar_acc = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
+        auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
+        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2, ++first3) {
-            scalar_acc(std::invoke(std::forward<F1>(f1), *first1), std::invoke(std::forward<F2>(f2), *first2), *first3);
+            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+            T sa = finite ? *first1 : T {0};
+            T sb = finite ? *first2 : T {0};
+            be(std::invoke(f1, sa), std::invoke(f2, sb), finite ? *first3 : T {0});
+            skippedCount += finite ? 0UL : 1UL;
         }
-        return bivariate_statistics(scalar_acc);
+        return {bivariate_statistics(be), skippedCount};
     }
-    return bivariate_statistics(acc);
-}
-
-/*!
-    \ingroup Bivariate
-
-    \brief Bivariate statistics over the finite subset of two paired
-    sequences -- rows where either input is non-finite are skipped rather
-    than poisoning the whole result.
-
-    \return The accumulated bivariate statistics over finite pairs, and the
-    count of skipped (non-finite) pairs.
-*/
-template<std::floating_point T,
-         std::random_access_iterator I,
-         std::random_access_iterator J>
-    requires std::is_arithmetic_v<std::iter_value_t<I>>
-          && std::is_arithmetic_v<std::iter_value_t<J>>
-inline auto accumulate_finite(I first1, I last1, J first2) noexcept
-    -> std::pair<bivariate_statistics, std::size_t>
-{
-    using wide = eve::wide<T>;
-    auto constexpr s {wide::size()};
-    auto const n {std::distance(first1, last1)};
-    auto const m = n - n % s;
-
-    bivariate_accumulator<wide> acc;
-    wide skipped {0};
-    for (size_t i = 0; i < m; i += s) {
-        wide a {first1};
-        wide b {first2};
-        auto finite = eve::is_finite(a) && eve::is_finite(b);
-        if (eve::all(finite)) [[likely]] {
-            // Match plain bivariate::accumulate's call shape (2-arg
-            // unweighted), which delegates to the weighted overload with
-            // w=1 -- keeps one source of truth for the Welford update and
-            // avoids the reader asking why the masked fast path takes a
-            // different call shape than the unmasked accumulate.
-            acc(a, b);
-        } else {
-            wide sa = eve::if_else(finite, a, wide {0});
-            wide sb = eve::if_else(finite, b, wide {0});
-            wide w  = eve::if_else(finite, wide {1}, wide {0});
-            acc(sa, sb, w);
-            skipped += eve::if_else(finite, wide {0}, wide {1});
-        }
-        detail::advance(s, first1, first2);
-    }
-
-    auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
-    auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
-    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
-    for (; first1 < last1; ++first1, ++first2) {
-        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-        T sa = finite ? *first1 : T {0};
-        T sb = finite ? *first2 : T {0};
-        be(sa, sb, finite ? T {1} : T {0});
-        skippedCount += finite ? 0UL : 1UL;
-    }
-    return {bivariate_statistics(be), skippedCount};
-}
-
-/*!
-    \ingroup Bivariate
-
-    \brief Weighted variant of `accumulate_finite`: folds a caller-supplied
-    weight into the finite mask (`w' = finite ? w : 0`).
-*/
-template<std::floating_point T,
-         std::random_access_iterator I,
-         std::random_access_iterator J,
-         std::random_access_iterator K>
-    requires std::is_arithmetic_v<std::iter_value_t<I>>
-          && std::is_arithmetic_v<std::iter_value_t<J>>
-          && std::is_arithmetic_v<std::iter_value_t<K>>
-inline auto accumulate_finite(I first1, I last1, J first2, K first3) noexcept
-    -> std::pair<bivariate_statistics, std::size_t>
-{
-    using wide = eve::wide<T>;
-    auto constexpr s {wide::size()};
-    auto const n {std::distance(first1, last1)};
-    auto const m = n - n % s;
-
-    bivariate_accumulator<wide> acc;
-    wide skipped {0};
-    for (size_t i = 0; i < m; i += s) {
-        wide a {first1};
-        wide b {first2};
-        wide weight {first3};
-        auto finite = eve::is_finite(a) && eve::is_finite(b);
-        if (eve::all(finite)) [[likely]] {
-            acc(a, b, weight);
-        } else {
-            wide sa = eve::if_else(finite, a, wide {0});
-            wide sb = eve::if_else(finite, b, wide {0});
-            wide w  = eve::if_else(finite, weight, wide {0});
-            acc(sa, sb, w);
-            skipped += eve::if_else(finite, wide {0}, wide {1});
-        }
-        detail::advance(s, first1, first2, first3);
-    }
-
-    auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
-    auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
-    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
-    for (; first1 < last1; ++first1, ++first2, ++first3) {
-        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-        T sa = finite ? *first1 : T {0};
-        T sb = finite ? *first2 : T {0};
-        be(sa, sb, finite ? *first3 : T {0});
-        skippedCount += finite ? 0UL : 1UL;
-    }
-    return {bivariate_statistics(be), skippedCount};
 }
 }  // namespace bivariate
 
@@ -808,124 +744,120 @@ inline auto r2_score(I first1, I last1, J first2, K first3) noexcept -> double
 
     \brief Computes the mean squared error
 
+    \tparam Policy `nan_policy::propagate` (default): a non-finite value
+   poisons the whole result. `nan_policy::omit`: rows where either value is
+   non-finite are skipped rather than poisoning the whole result.
+
     \f[
         \text{MSE}(y, \hat{y}) = \displaystyle \frac{1}{n} {\sum_{i=1}^n
    \left(y-\hat{y}\right)^2}
     \f]
+
+    \return `nan_policy::propagate`: the MSE. `nan_policy::omit`: the MSE
+   over finite pairs, and the count of skipped (non-finite) pairs.
 */
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
-inline auto mean_squared_error(I first1, I last1, J first2) noexcept -> double
+template<std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_squared_error(I first1, I last1, J first2) noexcept
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<double, std::size_t>, double>
 {
-    using wide = eve::wide<T>;
-    auto constexpr s {wide::size()};
-    auto const n {std::distance(first1, last1)};
-    auto const m {n - n % s};
+    if constexpr (Policy == nan_policy::propagate) {
+        using wide = eve::wide<T>;
+        auto constexpr s {wide::size()};
+        auto const n {std::distance(first1, last1)};
+        auto const m {n - n % s};
 
-    univariate_accumulator<wide, stats::mean> we;
-    for (auto i = 0; i < m; i += s) {
-        wide y_true {first1};
-        wide y_pred {first2};
-        we(eve::sqr(y_true - y_pred));
-        detail::advance(s, first1, first2);
-    }
+        univariate_accumulator<wide, stats::mean> we;
+        for (auto i = 0; i < m; i += s) {
+            wide y_true {first1};
+            wide y_pred {first2};
+            we(eve::sqr(y_true - y_pred));
+            detail::advance(s, first1, first2);
+        }
 
-    // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
-    for (; first1 < last1; ++first1, ++first2) {
-        se(eve::sqr(*first1 - *first2));
+        // use scalar accumulators for the remaining values
+        auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+        for (; first1 < last1; ++first1, ++first2) {
+            se(eve::sqr(*first1 - *first2));
+        }
+        return univariate_statistics(se).mean;
+    } else {
+        auto [st, skipped] = univariate::accumulate<T, stats::mean, nan_policy::omit>(
+            first1, last1, first2, [](auto a, auto b) { return eve::sqr(a - b); });
+        return {st.mean, skipped};
     }
-    return univariate_statistics(se).mean;
 }
 
 /*!
     \ingroup Metrics
 
-    \brief Computes the weighted mean squared error
+    \brief Weighted variant of `mean_squared_error`.
 
     \f[
         \text{MSE}(y, \hat{y}) = {\displaystyle \frac{1}{\sum_{i=1}^n w_i}}
    \sum_{i=1}^n w_i \left(y-\hat{y}\right)^2
     \f]
 */
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
-inline auto mean_squared_error(I first1, I last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_squared_error(I first1, I last1, J first2, K first3) noexcept
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<double, std::size_t>, double>
 {
-    using wide = eve::wide<T>;
-    auto constexpr s {wide::size()};
-    auto const n {std::distance(first1, last1)};
-    auto const m {n - n % s};
+    if constexpr (Policy == nan_policy::propagate) {
+        using wide = eve::wide<T>;
+        auto constexpr s {wide::size()};
+        auto const n {std::distance(first1, last1)};
+        auto const m {n - n % s};
 
-    univariate_accumulator<wide, stats::mean> we;
-    for (auto i = 0; i < m; i += s) {
-        wide y_true {first1};
-        wide y_pred {first2};
-        wide weight {first3};
-        we(eve::sqr(y_true - y_pred), weight);
-        detail::advance(s, first1, first2, first3);
+        univariate_accumulator<wide, stats::mean> we;
+        for (auto i = 0; i < m; i += s) {
+            wide y_true {first1};
+            wide y_pred {first2};
+            wide weight {first3};
+            we(eve::sqr(y_true - y_pred), weight);
+            detail::advance(s, first1, first2, first3);
+        }
+
+        // use scalar accumulators for the remaining values
+        auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+        for (; first1 < last1; ++first1, ++first2, ++first3) {
+            se(eve::sqr(*first1 - *first2), *first3);
+        }
+        return univariate_statistics(se).mean;
+    } else {
+        auto [st, skipped] = univariate::accumulate<T, stats::mean, nan_policy::omit>(
+            first1, last1, first2, first3, [](auto a, auto b) { return eve::sqr(a - b); });
+        return {st.mean, skipped};
     }
-
-    // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
-    for (; first1 < last1; ++first1, ++first2, ++first3) {
-        se(eve::sqr(*first1 - *first2), *first3);
-    }
-    return univariate_statistics(se).mean;
 }
 
 /*!
     \ingroup Metrics
 
-    \brief Mean squared error over the finite subset of (first1, first2)
-   pairs -- rows where either value is non-finite are skipped rather than
-   poisoning the whole result.
+    \brief Normalized mean squared error over (estimated, target) pairs.
 
-    \return The MSE over finite pairs, and the count of skipped (non-finite)
-   pairs.
-*/
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
-inline auto mean_squared_error_finite(I first1, I last1, J first2) noexcept -> std::pair<double, std::size_t>
-{
-    auto [st, skipped] = univariate::accumulate_finite<T, stats::mean>(
-        first1, last1, first2, [](auto a, auto b) { return eve::sqr(a - b); });
-    return {st.mean, skipped};
-}
+    \tparam Policy `nan_policy::propagate` (default): a non-finite value
+   poisons the whole result. `nan_policy::omit`: rows where either value is
+   non-finite are skipped rather than poisoning the whole result -- the
+   target variance is computed over the same finite subset (the mask is
+   shared), keeping the numerator and denominator consistent.
 
-/*!
-    \ingroup Metrics
-
-    \brief Weighted variant of `mean_squared_error_finite`.
-*/
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
-inline auto mean_squared_error_finite(I first1, I last1, J first2, K first3) noexcept -> std::pair<double, std::size_t>
-{
-    auto [st, skipped] = univariate::accumulate_finite<T, stats::mean>(
-        first1, last1, first2, first3, [](auto a, auto b) { return eve::sqr(a - b); });
-    return {st.mean, skipped};
-}
-
-/*!
-    \ingroup Metrics
-
-    \brief Normalized mean squared error over the finite subset of
-    (estimated, target) pairs -- rows where either value is non-finite are
-    skipped rather than poisoning the whole result. The target variance is
-    computed over the same finite subset (the mask is shared), keeping the
-    numerator and denominator consistent. Single pass over the input: the
-    residual mean and target variance accumulators run in lockstep, halving
-    the cost of the two-pass `NormalizedMeanSquaredErrorFinite` composition
-    that the operon error-metrics header used previously.
+    Single pass over the input in both modes: the residual mean and target
+   variance accumulators run in lockstep, instead of composing two
+   independent passes.
 
     \f[
-        \text{NMSE}_{\text{finite}}(y, \hat{y}) = \frac{
-            \overline{(y - \hat{y})^2}_{\text{finite}}
-        }{ \text{Var}_{\text{finite}}(y) }
+        \text{NMSE}(y, \hat{y}) = \frac{
+            \overline{(y - \hat{y})^2}
+        }{ \text{Var}(y) }
     \f]
 
-    \return The NMSE over finite pairs (0.0 if the target variance is 0),
-    and the count of skipped (non-finite) pairs.
+    \return `nan_policy::propagate`: the NMSE (0.0 if the target variance is
+   0). `nan_policy::omit`: the NMSE over finite pairs (0.0 if the target
+   variance over that subset is 0), and the count of skipped (non-finite)
+   pairs.
 */
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
-inline auto normalized_mean_squared_error_finite(I first1, I last1, J first2) noexcept -> std::pair<double, std::size_t>
+template<std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto normalized_mean_squared_error(I first1, I last1, J first2) noexcept
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<double, std::size_t>, double>
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -934,52 +866,76 @@ inline auto normalized_mean_squared_error_finite(I first1, I last1, J first2) no
 
     univariate_accumulator<wide, stats::mean> we;      // residual mean: <(a-b)^2>
     univariate_accumulator<wide, stats::variance> wv;  // target variance: Var(b)
-    wide skipped {0};
-    for (size_t i = 0; i < m; i += s) {
-        wide a {first1};
-        wide b {first2};
-        auto finite = eve::is_finite(a) && eve::is_finite(b);
-        if (eve::all(finite)) [[likely]] {
+
+    if constexpr (Policy == nan_policy::propagate) {
+        for (size_t i = 0; i < m; i += s) {
+            wide a {first1};
+            wide b {first2};
             we(eve::sqr(a - b));
             wv(b);
-        } else {
-            wide sa = eve::if_else(finite, a, wide {0});
-            wide sb = eve::if_else(finite, b, wide {0});
-            wide w  = eve::if_else(finite, wide {1}, wide {0});
-            // mask carried by weight -- the weighted overload's
-            // zero-denominator guard handles lanes whose first contribution
-            // is zero-weighted without NaN-poisoning the accumulator state.
-            we(eve::sqr(sa - sb), w);
-            wv(sb, w);
-            skipped += eve::if_else(finite, wide {0}, wide {1});
+            detail::advance(s, first1, first2);
         }
-        detail::advance(s, first1, first2);
-    }
 
-    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
-    auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
-    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
-    for (; first1 < last1; ++first1, ++first2) {
-        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-        T sa = finite ? *first1 : T {0};
-        T sb = finite ? *first2 : T {0};
-        se(eve::sqr(sa - sb), finite ? T {1} : T {0});
-        sv(sb, finite ? T {1} : T {0});
-        skippedCount += finite ? 0UL : 1UL;
-    }
+        auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+        auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
+        for (; first1 < last1; ++first1, ++first2) {
+            se(eve::sqr(*first1 - *first2));
+            sv(*first2);
+        }
 
-    auto const mean = univariate_statistics(se).mean;
-    auto const var  = univariate_statistics(sv).variance;
-    return {var > 0.0 ? mean / var : 0.0, skippedCount};
+        auto const mean = univariate_statistics(se).mean;
+        auto const var  = univariate_statistics(sv).variance;
+        return var > 0.0 ? mean / var : 0.0;
+    } else {
+        wide skipped {0};
+        for (size_t i = 0; i < m; i += s) {
+            wide a {first1};
+            wide b {first2};
+            auto finite = eve::is_finite((a - a) + (b - b));
+            if (eve::all(finite)) [[likely]] {
+                we(eve::sqr(a - b));
+                wv(b);
+            } else {
+                wide sa = eve::if_else(finite, a, wide {0});
+                wide sb = eve::if_else(finite, b, wide {0});
+                wide w  = eve::if_else(finite, wide {1}, wide {0});
+                // mask carried by weight -- the weighted overload's
+                // zero-denominator guard handles lanes whose first
+                // contribution is zero-weighted without NaN-poisoning the
+                // accumulator state.
+                we(eve::sqr(sa - sb), w);
+                wv(sb, w);
+                skipped += eve::if_else(finite, wide {0}, wide {1});
+            }
+            detail::advance(s, first1, first2);
+        }
+
+        auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+        auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
+        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+        for (; first1 < last1; ++first1, ++first2) {
+            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+            T sa = finite ? *first1 : T {0};
+            T sb = finite ? *first2 : T {0};
+            se(eve::sqr(sa - sb), finite ? T {1} : T {0});
+            sv(sb, finite ? T {1} : T {0});
+            skippedCount += finite ? 0UL : 1UL;
+        }
+
+        auto const mean = univariate_statistics(se).mean;
+        auto const var  = univariate_statistics(sv).variance;
+        return {var > 0.0 ? mean / var : 0.0, skippedCount};
+    }
 }
 
 /*!
     \ingroup Metrics
 
-    \brief Weighted variant of `normalized_mean_squared_error_finite`.
+    \brief Weighted variant of `normalized_mean_squared_error`.
 */
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
-inline auto normalized_mean_squared_error_finite(I first1, I last1, J first2, K first3) noexcept -> std::pair<double, std::size_t>
+template<std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto normalized_mean_squared_error(I first1, I last1, J first2, K first3) noexcept
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<double, std::size_t>, double>
 {
     using wide = eve::wide<T>;
     auto constexpr s {wide::size()};
@@ -988,41 +944,64 @@ inline auto normalized_mean_squared_error_finite(I first1, I last1, J first2, K 
 
     univariate_accumulator<wide, stats::mean> we;
     univariate_accumulator<wide, stats::variance> wv;
-    wide skipped {0};
-    for (size_t i = 0; i < m; i += s) {
-        wide a {first1};
-        wide b {first2};
-        wide weight {first3};
-        auto finite = eve::is_finite(a) && eve::is_finite(b);
-        if (eve::all(finite)) [[likely]] {
+
+    if constexpr (Policy == nan_policy::propagate) {
+        for (size_t i = 0; i < m; i += s) {
+            wide a {first1};
+            wide b {first2};
+            wide weight {first3};
             we(eve::sqr(a - b), weight);
             wv(b, weight);
-        } else {
-            wide sa = eve::if_else(finite, a, wide {0});
-            wide sb = eve::if_else(finite, b, wide {0});
-            wide w  = eve::if_else(finite, weight, wide {0});
-            we(eve::sqr(sa - sb), w);
-            wv(sb, w);
-            skipped += eve::if_else(finite, wide {0}, wide {1});
+            detail::advance(s, first1, first2, first3);
         }
-        detail::advance(s, first1, first2, first3);
-    }
 
-    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
-    auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
-    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
-    for (; first1 < last1; ++first1, ++first2, ++first3) {
-        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-        T sa = finite ? *first1 : T {0};
-        T sb = finite ? *first2 : T {0};
-        se(eve::sqr(sa - sb), finite ? *first3 : T {0});
-        sv(sb, finite ? *first3 : T {0});
-        skippedCount += finite ? 0UL : 1UL;
-    }
+        auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+        auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
+        for (; first1 < last1; ++first1, ++first2, ++first3) {
+            se(eve::sqr(*first1 - *first2), *first3);
+            sv(*first2, *first3);
+        }
 
-    auto const mean = univariate_statistics(se).mean;
-    auto const var  = univariate_statistics(sv).variance;
-    return {var > 0.0 ? mean / var : 0.0, skippedCount};
+        auto const mean = univariate_statistics(se).mean;
+        auto const var  = univariate_statistics(sv).variance;
+        return var > 0.0 ? mean / var : 0.0;
+    } else {
+        wide skipped {0};
+        for (size_t i = 0; i < m; i += s) {
+            wide a {first1};
+            wide b {first2};
+            wide weight {first3};
+            auto finite = eve::is_finite((a - a) + (b - b));
+            if (eve::all(finite)) [[likely]] {
+                we(eve::sqr(a - b), weight);
+                wv(b, weight);
+            } else {
+                wide sa = eve::if_else(finite, a, wide {0});
+                wide sb = eve::if_else(finite, b, wide {0});
+                wide w  = eve::if_else(finite, weight, wide {0});
+                we(eve::sqr(sa - sb), w);
+                wv(sb, w);
+                skipped += eve::if_else(finite, wide {0}, wide {1});
+            }
+            detail::advance(s, first1, first2, first3);
+        }
+
+        auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+        auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
+        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+        for (; first1 < last1; ++first1, ++first2, ++first3) {
+            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+            T sa = finite ? *first1 : T {0};
+            T sb = finite ? *first2 : T {0};
+            se(eve::sqr(sa - sb), finite ? *first3 : T {0});
+            sv(sb, finite ? *first3 : T {0});
+            skippedCount += finite ? 0UL : 1UL;
+        }
+
+        auto const mean = univariate_statistics(se).mean;
+        auto const var  = univariate_statistics(sv).variance;
+        return {var > 0.0 ? mean / var : 0.0, skippedCount};
+    }
 }
 
 /*!
@@ -1099,99 +1078,89 @@ inline auto mean_squared_log_error(I first1, I last1, J first2, K first3) noexce
 
     \brief Computes the mean absolute error
 
+    \tparam Policy `nan_policy::propagate` (default): a non-finite value
+   poisons the whole result. `nan_policy::omit`: rows where either value is
+   non-finite are skipped rather than poisoning the whole result.
+
     \f[
         \text{MAE}(y, \hat{y}) = \displaystyle \frac{1}{n} {\sum_{i=1}^n
    |y-\hat{y}|}
     \f]
+
+    \return `nan_policy::propagate`: the MAE. `nan_policy::omit`: the MAE
+   over finite pairs, and the count of skipped (non-finite) pairs.
 */
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
-inline auto mean_absolute_error(I first1, I last1, J first2) noexcept -> double
+template<std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_absolute_error(I first1, I last1, J first2) noexcept
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<double, std::size_t>, double>
 {
-    using wide = eve::wide<T>;
-    auto constexpr s {wide::size()};
-    auto const n {std::distance(first1, last1)};
-    auto const m {n - n % s};
+    if constexpr (Policy == nan_policy::propagate) {
+        using wide = eve::wide<T>;
+        auto constexpr s {wide::size()};
+        auto const n {std::distance(first1, last1)};
+        auto const m {n - n % s};
 
-    univariate_accumulator<wide, stats::mean> we;
-    for (auto i = 0; i < m; i += s) {
-        wide y_true {first1};
-        wide y_pred {first2};
-        we(eve::abs(y_true - y_pred));
-        detail::advance(s, first1, first2);
-    }
+        univariate_accumulator<wide, stats::mean> we;
+        for (auto i = 0; i < m; i += s) {
+            wide y_true {first1};
+            wide y_pred {first2};
+            we(eve::abs(y_true - y_pred));
+            detail::advance(s, first1, first2);
+        }
 
-    // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
-    for (; first1 < last1; ++first1, ++first2) {
-        se(eve::abs(*first1 - *first2));
+        // use scalar accumulators for the remaining values
+        auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+        for (; first1 < last1; ++first1, ++first2) {
+            se(eve::abs(*first1 - *first2));
+        }
+        return univariate_statistics(se).mean;
+    } else {
+        auto [st, skipped] = univariate::accumulate<T, stats::mean, nan_policy::omit>(
+            first1, last1, first2, [](auto a, auto b) { return eve::abs(a - b); });
+        return {st.mean, skipped};
     }
-    return univariate_statistics(se).mean;
 }
 
 /*!
     \ingroup Metrics
 
-    \brief Weighted mean absolute error
+    \brief Weighted variant of `mean_absolute_error`.
 
     \f[
         \text{MAE}(y, \hat{y}) = \displaystyle \frac{1}{\sum_{i=1}^n w_i}
    \sum_{i=1}^n w_i |y-\hat{y}|
     \f]
 */
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
-inline auto mean_absolute_error(I first1, I last1, J first2, K first3) noexcept -> double
+template<std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_absolute_error(I first1, I last1, J first2, K first3) noexcept
+    -> std::conditional_t<Policy == nan_policy::omit, std::pair<double, std::size_t>, double>
 {
-    using wide = eve::wide<T>;
-    auto constexpr s {wide::size()};
-    auto const n {std::distance(first1, last1)};
-    auto const m {n - n % s};
+    if constexpr (Policy == nan_policy::propagate) {
+        using wide = eve::wide<T>;
+        auto constexpr s {wide::size()};
+        auto const n {std::distance(first1, last1)};
+        auto const m {n - n % s};
 
-    univariate_accumulator<wide, stats::mean> we;
-    for (auto i = 0; i < m; i += s) {
-        wide y_true {first1};
-        wide y_pred {first2};
-        wide weight {first3};
-        we(eve::abs(y_true - y_pred), weight);
-        detail::advance(s, first1, first2, first3);
+        univariate_accumulator<wide, stats::mean> we;
+        for (auto i = 0; i < m; i += s) {
+            wide y_true {first1};
+            wide y_pred {first2};
+            wide weight {first3};
+            we(eve::abs(y_true - y_pred), weight);
+            detail::advance(s, first1, first2, first3);
+        }
+
+        // use scalar accumulators for the remaining values
+        auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+        for (; first1 < last1; ++first1, ++first2, ++first3) {
+            se(eve::abs(*first1 - *first2), *first3);
+        }
+        return univariate_statistics(se).mean;
+    } else {
+        auto [st, skipped] = univariate::accumulate<T, stats::mean, nan_policy::omit>(
+            first1, last1, first2, first3, [](auto a, auto b) { return eve::abs(a - b); });
+        return {st.mean, skipped};
     }
-
-    // use scalar accumulators for the remaining values
-    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
-    for (; first1 < last1; ++first1, ++first2, ++first3) {
-        se(eve::abs(*first1 - *first2), *first3);
-    }
-    return univariate_statistics(se).mean;
-}
-
-/*!
-    \ingroup Metrics
-
-    \brief Mean absolute error over the finite subset of (first1, first2)
-   pairs -- rows where either value is non-finite are skipped rather than
-   poisoning the whole result.
-
-    \return The MAE over finite pairs, and the count of skipped (non-finite)
-   pairs.
-*/
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
-inline auto mean_absolute_error_finite(I first1, I last1, J first2) noexcept -> std::pair<double, std::size_t>
-{
-    auto [st, skipped] = univariate::accumulate_finite<T, stats::mean>(
-        first1, last1, first2, [](auto a, auto b) { return eve::abs(a - b); });
-    return {st.mean, skipped};
-}
-
-/*!
-    \ingroup Metrics
-
-    \brief Weighted variant of `mean_absolute_error_finite`.
-*/
-template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
-inline auto mean_absolute_error_finite(I first1, I last1, J first2, K first3) noexcept -> std::pair<double, std::size_t>
-{
-    auto [st, skipped] = univariate::accumulate_finite<T, stats::mean>(
-        first1, last1, first2, first3, [](auto a, auto b) { return eve::abs(a - b); });
-    return {st.mean, skipped};
 }
 
 /*!
