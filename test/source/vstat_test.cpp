@@ -600,6 +600,49 @@ TEST_CASE("bivariate mixed weighted-zero prefix then unweighted tail", "[correct
     SECTION("float")  { test.operator()<float>(); }
 }
 
+namespace {
+// Univariate mirror of mixed_masked_unweighted_round_trip: a masked
+// zero-weight prefix followed by an unweighted tail, targeting
+// univariate_accumulator::operator()(T x) (unweighted, stats::variance)
+// directly rather than reaching it only indirectly through
+// normalized_mean_squared_error's omit path.
+template<typename T>
+auto mixed_masked_unweighted_univariate_round_trip() -> std::tuple<T, T, T>
+{
+    vstat::univariate_accumulator<T, vstat::stats::variance> acc;
+    // front: all-weight-zero run, leaves sum_w=0, sum_w_old=0 (post masked).
+    for (T xi : {T{1}, T{2}, T{3}})
+        acc(xi, T{0});
+    // tail: "continue unweighted", must not see 0/0 -> NaN from the prior state.
+    for (T xi : {T{4}, T{5}})
+        acc(xi);
+    return acc.stats();
+}
+} // namespace
+
+TEST_CASE("univariate mixed weighted-zero prefix then unweighted tail", "[correctness]")
+{
+    // Regression test for the latent univariate zero-denominator bug: a
+    // zero-weight prefix left sum_w_old at 0, and the *unweighted* update
+    // (operator()(T x)) did `(dx*dx) / (sum_w * sum_w_old)` unconditionally
+    // -> 0/0 = NaN, stored into sum_xx unconditionally, poisoning every
+    // subsequent observation. Fixed by guarding the unweighted update the
+    // same way the weighted one already was.
+    auto test = [&]<typename T>() {
+        auto [sw, sx, sxx] = mixed_masked_unweighted_univariate_round_trip<T>();
+        REQUIRE(std::isfinite(static_cast<double>(sxx)));
+        // Reference: tail-only stats over {4, 5} (the zero-weight prefix was
+        // correctly excluded by the weighted overload's own guard).
+        std::vector<T> ref {T{4}, T{5}};
+        auto ref_stats = uv::accumulate<T, vstat::stats::variance>(ref.begin(), ref.end());
+        REQUIRE(test_util::equal<T>(static_cast<T>(sw), static_cast<T>(ref_stats.count), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(sxx / sw), static_cast<T>(ref_stats.variance), T{1e-5}));
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
 TEST_CASE("accumulate<nan_policy::omit> all-finite matches accumulate", "[correctness]")
 {
     // With no non-finite values, accumulate<..., nan_policy::omit> must

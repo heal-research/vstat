@@ -10,6 +10,7 @@
 #include <limits>
 #include <numbers>
 #include <type_traits>
+#include <utility>
 
 #include <eve/module/math.hpp>
 #include <eve/module/special.hpp>
@@ -58,12 +59,6 @@ auto inline advance(Distance d, Iters&... iters) -> void
 {
     (std::advance(iters, d), ...);
 }
-
-// default binary projection: keep the first sequence's value
-struct first_of_pair {
-    template<typename A, typename B>
-    constexpr auto operator()(A a, B /*b*/) const noexcept { return a; }
-};
 }  // namespace detail
 
 namespace concepts
@@ -300,11 +295,15 @@ inline auto accumulate(I first1,
         auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
         auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2) {
-            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-            T sa = finite ? *first1 : T {0};
-            T sb = finite ? *first2 : T {0};
-            se(f(sa, sb), finite ? T {1} : T {0});
-            skipped_count += finite ? 0UL : 1UL;
+            if (std::isfinite(*first1) && std::isfinite(*first2)) [[likely]] {
+                // unweighted overload: cheaper recurrence than weighted(x, 1)
+                se(f(*first1, *first2));
+            } else {
+                // a w=0 contribution is a no-op on accumulator state (x*0,
+                // sum_w += 0, guarded denom == 0) -- skip the call entirely
+                // rather than paying for a masked weighted() call.
+                ++skipped_count;
+            }
         }
         return {univariate_statistics(se), skipped_count};
     }
@@ -405,11 +404,13 @@ inline auto accumulate(I first1,
         auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
         auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2, ++first3) {
-            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-            T sa = finite ? *first1 : T {0};
-            T sb = finite ? *first2 : T {0};
-            se(f(sa, sb), finite ? *first3 : T {0});
-            skipped_count += finite ? 0UL : 1UL;
+            if (std::isfinite(*first1) && std::isfinite(*first2)) [[likely]] {
+                se(f(*first1, *first2), *first3);
+            } else {
+                // a w=0 contribution is a no-op on accumulator state -- skip
+                // the call entirely rather than paying for a masked one.
+                ++skipped_count;
+            }
         }
         return {univariate_statistics(se), skipped_count};
     }
@@ -432,12 +433,20 @@ namespace bivariate
 
     \tparam T The scalar value type underlying the `eve::wide<T>` SIMD type used
    to compute the stats.
+    \tparam Policy `nan_policy::propagate` (default): a non-finite value
+   poisons the whole result. `nan_policy::omit`: positions where either raw
+   input is non-finite are skipped (zero-weighted) instead, and the count of
+   skipped pairs is additionally returned.
 
     \param first1 The begin iterator for the first sequence
     \param last1  The end iterator for the first sequence
     \param first2 The begin iterator for the second sequence
     \param f1     A projection mapping `std::iter_value_t<I>` to a scalar value
     \param f2     A projection mapping `std::iter_value_t<J>` to a scalar value
+
+    \return `nan_policy::propagate`: the accumulated bivariate statistics.
+   `nan_policy::omit`: the accumulated bivariate statistics over finite
+   pairs, and the count of skipped (non-finite) pairs.
 
     \b Example
 
@@ -462,18 +471,6 @@ namespace bivariate
     covariance:             -1.75
     sample covariance:      -2.33333
     \endcode
-*/
-/*!
-    \ingroup Bivariate
-
-    \tparam Policy `nan_policy::propagate` (default): a non-finite value
-   poisons the whole result. `nan_policy::omit`: positions where either raw
-   input is non-finite are skipped (zero-weighted) instead, and the count of
-   skipped pairs is additionally returned.
-
-    \return `nan_policy::propagate`: the accumulated bivariate statistics.
-   `nan_policy::omit`: the accumulated bivariate statistics over finite
-   pairs, and the count of skipped (non-finite) pairs.
 */
 template<std::floating_point T,
          nan_policy Policy = nan_policy::propagate,
@@ -542,11 +539,13 @@ inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1 {}, F2&& f2 = F
         auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
         auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2) {
-            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-            T sa = finite ? *first1 : T {0};
-            T sb = finite ? *first2 : T {0};
-            be(std::invoke(f1, sa), std::invoke(f2, sb), finite ? T {1} : T {0});
-            skipped_count += finite ? 0UL : 1UL;
+            if (std::isfinite(*first1) && std::isfinite(*first2)) [[likely]] {
+                be(std::invoke(f1, *first1), std::invoke(f2, *first2));
+            } else {
+                // a w=0 contribution is a no-op on accumulator state -- skip
+                // the call entirely rather than paying for a masked one.
+                ++skipped_count;
+            }
         }
         return {bivariate_statistics(be), skipped_count};
     }
@@ -628,11 +627,13 @@ inline auto accumulate(
         auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
         auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2, ++first3) {
-            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-            T sa = finite ? *first1 : T {0};
-            T sb = finite ? *first2 : T {0};
-            be(std::invoke(f1, sa), std::invoke(f2, sb), finite ? *first3 : T {0});
-            skipped_count += finite ? 0UL : 1UL;
+            if (std::isfinite(*first1) && std::isfinite(*first2)) [[likely]] {
+                be(std::invoke(f1, *first1), std::invoke(f2, *first2), *first3);
+            } else {
+                // a w=0 contribution is a no-op on accumulator state -- skip
+                // the call entirely rather than paying for a masked one.
+                ++skipped_count;
+            }
         }
         return {bivariate_statistics(be), skipped_count};
     }
@@ -914,12 +915,14 @@ inline auto normalized_mean_squared_error(I first1, I last1, J first2) noexcept
         auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
         auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2) {
-            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-            T sa = finite ? *first1 : T {0};
-            T sb = finite ? *first2 : T {0};
-            se(eve::sqr(sa - sb), finite ? T {1} : T {0});
-            sv(sb, finite ? T {1} : T {0});
-            skipped_count += finite ? 0UL : 1UL;
+            if (std::isfinite(*first1) && std::isfinite(*first2)) [[likely]] {
+                se(eve::sqr(*first1 - *first2));
+                sv(*first2);
+            } else {
+                // a w=0 contribution is a no-op on accumulator state -- skip
+                // the calls entirely rather than paying for masked ones.
+                ++skipped_count;
+            }
         }
 
         auto const mean = univariate_statistics(se).mean;
@@ -990,12 +993,14 @@ inline auto normalized_mean_squared_error(I first1, I last1, J first2, K first3)
         auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
         auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2, ++first3) {
-            bool finite = std::isfinite(*first1) && std::isfinite(*first2);
-            T sa = finite ? *first1 : T {0};
-            T sb = finite ? *first2 : T {0};
-            se(eve::sqr(sa - sb), finite ? *first3 : T {0});
-            sv(sb, finite ? *first3 : T {0});
-            skipped_count += finite ? 0UL : 1UL;
+            if (std::isfinite(*first1) && std::isfinite(*first2)) [[likely]] {
+                se(eve::sqr(*first1 - *first2), *first3);
+                sv(*first2, *first3);
+            } else {
+                // a w=0 contribution is a no-op on accumulator state -- skip
+                // the calls entirely rather than paying for masked ones.
+                ++skipped_count;
+            }
         }
 
         auto const mean = univariate_statistics(se).mean;
