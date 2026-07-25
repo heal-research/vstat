@@ -635,10 +635,10 @@ TEST_CASE("accumulate<nan_policy::omit> skips non-finite pairs", "[correctness]"
 
         // reference: manually filtered finite-pair subset {1,2,4,6,7,8}
         std::vector<T> ref {T{1}, T{2}, T{4}, T{6}, T{7}, T{8}};
-        auto refStats = uv::accumulate<T, vstat::stats::mean>(ref.begin(), ref.end());
+        auto ref_stats = uv::accumulate<T, vstat::stats::mean>(ref.begin(), ref.end());
 
         REQUIRE(std::isfinite(st.mean));
-        REQUIRE(test_util::equal<T>(static_cast<T>(st.mean), static_cast<T>(refStats.mean), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.mean), static_cast<T>(ref_stats.mean), T{1e-5}));
     };
 
     SECTION("double") { test.operator()<double>(); }
@@ -746,25 +746,25 @@ TEST_CASE("mean_squared_error/mean_absolute_error with nan_policy::omit", "[corr
             }
         }
 
-        auto [mse, skippedMse] = mv::mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin());
-        auto mseRef = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin());
-        REQUIRE(skippedMse == 2UL);
-        REQUIRE(test_util::equal<T>(static_cast<T>(mse), static_cast<T>(mseRef), eps));
+        auto [mse, skipped_mse] = mv::mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin());
+        auto mse_ref = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin());
+        REQUIRE(skipped_mse == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(mse), static_cast<T>(mse_ref), eps));
 
-        auto [mae, skippedMae] = mv::mean_absolute_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin());
-        auto maeRef = mv::mean_absolute_error<T>(xf.begin(), xf.end(), yf.begin());
-        REQUIRE(skippedMae == 2UL);
-        REQUIRE(test_util::equal<T>(static_cast<T>(mae), static_cast<T>(maeRef), eps));
+        auto [mae, skipped_mae] = mv::mean_absolute_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin());
+        auto mae_ref = mv::mean_absolute_error<T>(xf.begin(), xf.end(), yf.begin());
+        REQUIRE(skipped_mae == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(mae), static_cast<T>(mae_ref), eps));
 
-        auto [wmse, wSkippedMse] = mv::mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin(), w.begin());
-        auto wmseRef = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
-        REQUIRE(wSkippedMse == 2UL);
-        REQUIRE(test_util::equal<T>(static_cast<T>(wmse), static_cast<T>(wmseRef), eps));
+        auto [wmse, w_skipped_mse] = mv::mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin(), w.begin());
+        auto wmse_ref = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
+        REQUIRE(w_skipped_mse == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(wmse), static_cast<T>(wmse_ref), eps));
 
-        auto [wmae, wSkippedMae] = mv::mean_absolute_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin(), w.begin());
-        auto wmaeRef = mv::mean_absolute_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
-        REQUIRE(wSkippedMae == 2UL);
-        REQUIRE(test_util::equal<T>(static_cast<T>(wmae), static_cast<T>(wmaeRef), eps));
+        auto [wmae, w_skipped_mae] = mv::mean_absolute_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin(), w.begin());
+        auto wmae_ref = mv::mean_absolute_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
+        REQUIRE(w_skipped_mae == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(wmae), static_cast<T>(wmae_ref), eps));
     };
 
     SECTION("double") { test.operator()<double>(count_medium, 1e-5); }
@@ -796,7 +796,7 @@ TEST_CASE("normalized_mean_squared_error with nan_policy::omit", "[correctness]"
         inject(n / 3);
         inject(n / 2);
         inject(n - 1);
-        std::size_t const expectedSkipped = 4;
+        std::size_t const expected_skipped = 4;
 
         std::vector<T> xf, yf, wf;
         for (int i = 0; i < n; ++i) {
@@ -808,22 +808,22 @@ TEST_CASE("normalized_mean_squared_error with nan_policy::omit", "[correctness]"
         }
 
         // Unweighted reference over the hand-built finite subset.
-        auto mseRef = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin());
-        auto varYRef = uv::accumulate<T>(yf.begin(), yf.end()).variance;
-        auto nmseRef = varYRef > 0.0 ? mseRef / varYRef : 0.0;
+        auto mse_ref = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin());
+        auto var_y_ref = uv::accumulate<T>(yf.begin(), yf.end()).variance;
+        auto nmse_ref = var_y_ref > 0.0 ? mse_ref / var_y_ref : 0.0;
 
         auto [nmse, skipped] = mv::normalized_mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin());
-        REQUIRE(skipped == expectedSkipped);
-        REQUIRE(test_util::equal<T>(static_cast<T>(nmse), static_cast<T>(nmseRef), eps));
+        REQUIRE(skipped == expected_skipped);
+        REQUIRE(test_util::equal<T>(static_cast<T>(nmse), static_cast<T>(nmse_ref), eps));
 
         // Weighted reference: NMSE(y, yhat, w) = mean(sqr(xf-yf), wf) / variance(yf, wf)
-        auto wmseRef = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
-        auto wvarYRef = uv::accumulate<T>(yf.begin(), yf.end(), wf.begin()).variance;
-        auto wnmseRef = wvarYRef > 0.0 ? wmseRef / wvarYRef : 0.0;
+        auto wmse_ref = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
+        auto wvar_y_ref = uv::accumulate<T>(yf.begin(), yf.end(), wf.begin()).variance;
+        auto wnmse_ref = wvar_y_ref > 0.0 ? wmse_ref / wvar_y_ref : 0.0;
 
         auto [wnmse, wskipped] = mv::normalized_mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin(), w.begin());
-        REQUIRE(wskipped == expectedSkipped);
-        REQUIRE(test_util::equal<T>(static_cast<T>(wnmse), static_cast<T>(wnmseRef), eps));
+        REQUIRE(wskipped == expected_skipped);
+        REQUIRE(test_util::equal<T>(static_cast<T>(wnmse), static_cast<T>(wnmse_ref), eps));
     };
 
     SECTION("double") { test.operator()<double>(count_medium, 1e-5); }

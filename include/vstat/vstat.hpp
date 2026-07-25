@@ -298,15 +298,15 @@ inline auto accumulate(I first1,
         }
 
         auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
-        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+        auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2) {
             bool finite = std::isfinite(*first1) && std::isfinite(*first2);
             T sa = finite ? *first1 : T {0};
             T sb = finite ? *first2 : T {0};
             se(f(sa, sb), finite ? T {1} : T {0});
-            skippedCount += finite ? 0UL : 1UL;
+            skipped_count += finite ? 0UL : 1UL;
         }
-        return {univariate_statistics(se), skippedCount};
+        return {univariate_statistics(se), skipped_count};
     }
 }
 
@@ -403,15 +403,15 @@ inline auto accumulate(I first1,
         }
 
         auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
-        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+        auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2, ++first3) {
             bool finite = std::isfinite(*first1) && std::isfinite(*first2);
             T sa = finite ? *first1 : T {0};
             T sb = finite ? *first2 : T {0};
             se(f(sa, sb), finite ? *first3 : T {0});
-            skippedCount += finite ? 0UL : 1UL;
+            skipped_count += finite ? 0UL : 1UL;
         }
-        return {univariate_statistics(se), skippedCount};
+        return {univariate_statistics(se), skipped_count};
     }
 }
 }  // namespace univariate
@@ -540,15 +540,15 @@ inline auto accumulate(I first1, I last1, J first2, F1&& f1 = F1 {}, F2&& f2 = F
 
         auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
         auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
-        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+        auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2) {
             bool finite = std::isfinite(*first1) && std::isfinite(*first2);
             T sa = finite ? *first1 : T {0};
             T sb = finite ? *first2 : T {0};
             be(std::invoke(f1, sa), std::invoke(f2, sb), finite ? T {1} : T {0});
-            skippedCount += finite ? 0UL : 1UL;
+            skipped_count += finite ? 0UL : 1UL;
         }
-        return {bivariate_statistics(be), skippedCount};
+        return {bivariate_statistics(be), skipped_count};
     }
 }
 
@@ -626,15 +626,15 @@ inline auto accumulate(
 
         auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
         auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
-        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+        auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2, ++first3) {
             bool finite = std::isfinite(*first1) && std::isfinite(*first2);
             T sa = finite ? *first1 : T {0};
             T sb = finite ? *first2 : T {0};
             be(std::invoke(f1, sa), std::invoke(f2, sb), finite ? *first3 : T {0});
-            skippedCount += finite ? 0UL : 1UL;
+            skipped_count += finite ? 0UL : 1UL;
         }
-        return {bivariate_statistics(be), skippedCount};
+        return {bivariate_statistics(be), skipped_count};
     }
 }
 }  // namespace bivariate
@@ -912,19 +912,19 @@ inline auto normalized_mean_squared_error(I first1, I last1, J first2) noexcept
 
         auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
         auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
-        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+        auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2) {
             bool finite = std::isfinite(*first1) && std::isfinite(*first2);
             T sa = finite ? *first1 : T {0};
             T sb = finite ? *first2 : T {0};
             se(eve::sqr(sa - sb), finite ? T {1} : T {0});
             sv(sb, finite ? T {1} : T {0});
-            skippedCount += finite ? 0UL : 1UL;
+            skipped_count += finite ? 0UL : 1UL;
         }
 
         auto const mean = univariate_statistics(se).mean;
         auto const var  = univariate_statistics(sv).variance;
-        return {var > 0.0 ? mean / var : 0.0, skippedCount};
+        return {var > 0.0 ? mean / var : 0.0, skipped_count};
     }
 }
 
@@ -988,19 +988,19 @@ inline auto normalized_mean_squared_error(I first1, I last1, J first2, K first3)
 
         auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
         auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
-        auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+        auto skipped_count = static_cast<std::size_t>(eve::reduce(skipped));
         for (; first1 < last1; ++first1, ++first2, ++first3) {
             bool finite = std::isfinite(*first1) && std::isfinite(*first2);
             T sa = finite ? *first1 : T {0};
             T sb = finite ? *first2 : T {0};
             se(eve::sqr(sa - sb), finite ? *first3 : T {0});
             sv(sb, finite ? *first3 : T {0});
-            skippedCount += finite ? 0UL : 1UL;
+            skipped_count += finite ? 0UL : 1UL;
         }
 
         auto const mean = univariate_statistics(se).mean;
         auto const var  = univariate_statistics(sv).variance;
-        return {var > 0.0 ? mean / var : 0.0, skippedCount};
+        return {var > 0.0 ? mean / var : 0.0, skipped_count};
     }
 }
 
