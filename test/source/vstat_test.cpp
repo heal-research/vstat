@@ -539,6 +539,66 @@ TEST_CASE("weighted covariance all-zero weights", "[correctness]")
     SECTION("float")  { test.operator()<float>(); }
 }
 
+namespace {
+// Simulate the "masked zero-weight prefix then plain unweighted continue"
+// sequence that bivariate::accumulate_finite exercises on its SIMD tail:
+// bivariate::accumulate_finite<...> ran the wide accumulator with a weight
+// of zero on every lane of the very first chunk (skipping the first s
+// values), then transferred state into a scalar bivariate_accumulator<T>
+// and called the *unweighted* operator()(T, T) for the remaining tail.
+// Before the fix, that scalar tail update did `1. / (sum_w * sum_w_old)`
+// with sum_w_old == 0 (left there by the masked wide path), giving 0/0 =
+// NaN that got stored into sum_xx unconditionally and poisoned every
+// subsequent scalar tail update.
+template<typename T>
+auto mixed_masked_unweighted_round_trip() -> std::tuple<T, T, T, T, T, T>
+{
+    vstat::bivariate_accumulator<T> acc;
+    // front: all-weight-zero run, leaves sum_w=0, sum_w_old=0 (post masked).
+    for (auto [xi, yi] : std::initializer_list<std::pair<T,T>>{{T{1},T{5}},{T{2},T{4}},{T{3},T{3}}})
+        acc(xi, yi, T{0});
+    // tail: "continue unweighted", must not see 0/0 -> NaN from the prior state.
+    for (auto [xi, yi] : std::initializer_list<std::pair<T,T>>{{T{4},T{2}},{T{5},T{1}}})
+        acc(xi, yi);
+    return acc.stats();
+}
+} // namespace
+
+TEST_CASE("bivariate mixed weighted-zero prefix then unweighted tail", "[correctness]")
+{
+    // Regression test for the latent bivariate zero-denominator bug the
+    // skip-non-finite branch hit only after bivariate::accumulate_finite
+    // started routing its scalar tail through the unweighted update: a
+    // zero-weight prefix left sum_w_old at 0 in the wide accumulator, and
+    // the *unweighted* update (called for the residual tail entries) did
+    // `1. / (sum_w * sum_w_old)` unconditionally -> 0/0 = NaN -> stored
+    // into sum_xx, sum_yy, sum_xy, poisoning every subsequent observation.
+    // The fix routes the unweighted update through the (already-guarded)
+    // weighted update with w=1.
+    auto test = [&]<typename T>() {
+        auto [sw, sx, sy, sxx, syy, sxy] = mixed_masked_unweighted_round_trip<T>();
+        REQUIRE(std::isfinite(static_cast<double>(sxx)));
+        REQUIRE(std::isfinite(static_cast<double>(syy)));
+        REQUIRE(std::isfinite(static_cast<double>(sxy)));
+        // Reference: tail-only unweighted stats over the last two pairs
+        // {4,2}, {5,1} (the zero-weight prefix was correctly excluded by
+        // the weighted overload's own guard; the unweighted tail must
+        // reproduce accumulate on {4,2..5,1}).
+        std::vector<T> x {T{4}, T{5}};
+        std::vector<T> y {T{2}, T{1}};
+        auto ref = bv::accumulate<T>(x.begin(), x.end(), y.begin());
+        REQUIRE(test_util::equal<T>(static_cast<T>(sw / sw), T{1}, T{1e-5}));
+        // count is sw (2.0), mean_x = sx/sw, mean_y = sy/sw, variance_x = sxx/sw
+        REQUIRE(test_util::equal<T>(static_cast<T>(sw), static_cast<T>(ref.count), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(sxx / sw), static_cast<T>(ref.ssr_x / ref.count), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(syy / sw), static_cast<T>(ref.ssr_y / ref.count), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(sxy / sw), static_cast<T>(ref.sum_xy / ref.count), T{1e-5}));
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
 TEST_CASE("accumulate_finite all-finite matches accumulate", "[correctness]")
 {
     // With no non-finite values, accumulate_finite must reproduce the plain
