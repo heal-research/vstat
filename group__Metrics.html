@@ -128,24 +128,31 @@ Functions</h2></td></tr>
 <tr class="memitem:ga9edc3e4e14928efb07be3c69fb7987e7" id="r_ga9edc3e4e14928efb07be3c69fb7987e7"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </td></tr>
 <tr class="memitem:ga9edc3e4e14928efb07be3c69fb7987e7"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga9edc3e4e14928efb07be3c69fb7987e7">r2_score</a> (I first1, I last1, J first2, K first3) noexcept -&gt; double</td></tr>
 <tr class="separator:ga9edc3e4e14928efb07be3c69fb7987e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gad735d45692f174d15fd1d3f64f2ff934" id="r_gad735d45692f174d15fd1d3f64f2ff934"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J&gt; </td></tr>
-<tr class="memitem:gad735d45692f174d15fd1d3f64f2ff934"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#gad735d45692f174d15fd1d3f64f2ff934">mean_squared_error</a> (I first1, I last1, J first2) noexcept -&gt; double</td></tr>
-<tr class="separator:gad735d45692f174d15fd1d3f64f2ff934"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga8fdd0d0b6a83d4426d3fbe090e817438" id="r_ga8fdd0d0b6a83d4426d3fbe090e817438"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </td></tr>
-<tr class="memitem:ga8fdd0d0b6a83d4426d3fbe090e817438"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga8fdd0d0b6a83d4426d3fbe090e817438">mean_squared_error</a> (I first1, I last1, J first2, K first3) noexcept -&gt; double</td></tr>
-<tr class="separator:ga8fdd0d0b6a83d4426d3fbe090e817438"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga57e365a2822e5c2e3bf673883c76a05e" id="r_ga57e365a2822e5c2e3bf673883c76a05e"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J&gt; </td></tr>
+<tr class="memitem:ga57e365a2822e5c2e3bf673883c76a05e"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga57e365a2822e5c2e3bf673883c76a05e">mean_squared_error</a> (I first1, I last1, J first2) noexcept -&gt; std::conditional_t&lt; Policy==nan_policy::omit, std::pair&lt; double, std::size_t &gt;, double &gt;</td></tr>
+<tr class="separator:ga57e365a2822e5c2e3bf673883c76a05e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga7ae31ed8ff05287689a08193e57349f9" id="r_ga7ae31ed8ff05287689a08193e57349f9"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </td></tr>
+<tr class="memitem:ga7ae31ed8ff05287689a08193e57349f9"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga7ae31ed8ff05287689a08193e57349f9">mean_squared_error</a> (I first1, I last1, J first2, K first3) noexcept -&gt; std::conditional_t&lt; Policy==nan_policy::omit, std::pair&lt; double, std::size_t &gt;, double &gt;</td></tr>
+<tr class="separator:ga7ae31ed8ff05287689a08193e57349f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga106b45d8af3850771e842686e25a7d09" id="r_ga106b45d8af3850771e842686e25a7d09"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J&gt; </td></tr>
+<tr class="memitem:ga106b45d8af3850771e842686e25a7d09"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga106b45d8af3850771e842686e25a7d09">normalized_mean_squared_error</a> (I first1, I last1, J first2) noexcept -&gt; std::conditional_t&lt; Policy==nan_policy::omit, std::pair&lt; double, std::size_t &gt;, double &gt;</td></tr>
+<tr class="separator:ga106b45d8af3850771e842686e25a7d09"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gac264660b2dfbe33c04fb251c8c4f3b7e" id="r_gac264660b2dfbe33c04fb251c8c4f3b7e"><td class="memTemplParams" colspan="2"><a id="gac264660b2dfbe33c04fb251c8c4f3b7e" name="gac264660b2dfbe33c04fb251c8c4f3b7e"></a>
+template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </td></tr>
+<tr class="memitem:gac264660b2dfbe33c04fb251c8c4f3b7e"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><b>normalized_mean_squared_error</b> (I first1, I last1, J first2, K first3) noexcept -&gt; std::conditional_t&lt; Policy==nan_policy::omit, std::pair&lt; double, std::size_t &gt;, double &gt;</td></tr>
+<tr class="separator:gac264660b2dfbe33c04fb251c8c4f3b7e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga661e62a6976843e2cfa2bfd7d653983a" id="r_ga661e62a6976843e2cfa2bfd7d653983a"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J&gt; </td></tr>
 <tr class="memitem:ga661e62a6976843e2cfa2bfd7d653983a"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga661e62a6976843e2cfa2bfd7d653983a">mean_squared_log_error</a> (I first1, I last1, J first2) noexcept -&gt; double</td></tr>
 <tr class="separator:ga661e62a6976843e2cfa2bfd7d653983a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga7dee3355c1c7ff7556f9e701fff13aa6" id="r_ga7dee3355c1c7ff7556f9e701fff13aa6"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </td></tr>
 <tr class="memitem:ga7dee3355c1c7ff7556f9e701fff13aa6"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga7dee3355c1c7ff7556f9e701fff13aa6">mean_squared_log_error</a> (I first1, I last1, J first2, K first3) noexcept -&gt; double</td></tr>
 <tr class="separator:ga7dee3355c1c7ff7556f9e701fff13aa6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga9e3d0de50929fcf262b1408963921c9c" id="r_ga9e3d0de50929fcf262b1408963921c9c"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J&gt; </td></tr>
-<tr class="memitem:ga9e3d0de50929fcf262b1408963921c9c"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga9e3d0de50929fcf262b1408963921c9c">mean_absolute_error</a> (I first1, I last1, J first2) noexcept -&gt; double</td></tr>
-<tr class="separator:ga9e3d0de50929fcf262b1408963921c9c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gab03ed83f3485b1f9bd46ebabafa71cc1" id="r_gab03ed83f3485b1f9bd46ebabafa71cc1"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </td></tr>
-<tr class="memitem:gab03ed83f3485b1f9bd46ebabafa71cc1"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#gab03ed83f3485b1f9bd46ebabafa71cc1">mean_absolute_error</a> (I first1, I last1, J first2, K first3) noexcept -&gt; double</td></tr>
-<tr class="separator:gab03ed83f3485b1f9bd46ebabafa71cc1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga33ad486321b9fade19b2289923ac3177" id="r_ga33ad486321b9fade19b2289923ac3177"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J&gt; </td></tr>
+<tr class="memitem:ga33ad486321b9fade19b2289923ac3177"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga33ad486321b9fade19b2289923ac3177">mean_absolute_error</a> (I first1, I last1, J first2) noexcept -&gt; std::conditional_t&lt; Policy==nan_policy::omit, std::pair&lt; double, std::size_t &gt;, double &gt;</td></tr>
+<tr class="separator:ga33ad486321b9fade19b2289923ac3177"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga65702a7f8929d6c88ae0d43540f13a86" id="r_ga65702a7f8929d6c88ae0d43540f13a86"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </td></tr>
+<tr class="memitem:ga65702a7f8929d6c88ae0d43540f13a86"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#ga65702a7f8929d6c88ae0d43540f13a86">mean_absolute_error</a> (I first1, I last1, J first2, K first3) noexcept -&gt; std::conditional_t&lt; Policy==nan_policy::omit, std::pair&lt; double, std::size_t &gt;, double &gt;</td></tr>
+<tr class="separator:ga65702a7f8929d6c88ae0d43540f13a86"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gaf72b10bf40825580bf73ff6afe5a10e8" id="r_gaf72b10bf40825580bf73ff6afe5a10e8"><td class="memTemplParams" colspan="2">template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J&gt; </td></tr>
 <tr class="memitem:gaf72b10bf40825580bf73ff6afe5a10e8"><td class="memTemplItemLeft" align="right" valign="top">auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="group__Metrics.html#gaf72b10bf40825580bf73ff6afe5a10e8">mean_absolute_percentage_error</a> (I first1, I last1, J first2) noexcept -&gt; double</td></tr>
 <tr class="separator:gaf72b10bf40825580bf73ff6afe5a10e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -229,13 +236,13 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
 
 </div>
 </div>
-<a id="ga9e3d0de50929fcf262b1408963921c9c" name="ga9e3d0de50929fcf262b1408963921c9c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga9e3d0de50929fcf262b1408963921c9c">&#9670;&#160;</a></span>mean_absolute_error() <span class="overload">[1/2]</span></h2>
+<a id="ga33ad486321b9fade19b2289923ac3177" name="ga33ad486321b9fade19b2289923ac3177"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga33ad486321b9fade19b2289923ac3177">&#9670;&#160;</a></span>mean_absolute_error() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J&gt; </div>
+template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -261,7 +268,7 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double
+          <td></td><td> -&gt; std::conditional_t&lt;Policy == nan_policy::omit, std::pair&lt;double, std::size_t&gt;, double&gt;
 </td>
         </tr>
       </table>
@@ -273,22 +280,29 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
 </div><div class="memdoc">
 
 <p>Computes the mean absolute error. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Policy</td><td><code>nan_policy::propagate</code> (default): a non-finite value poisons the whole result. <code>nan_policy::omit</code>: rows where either value is non-finite are skipped rather than poisoning the whole result.</td></tr>
+  </table>
+  </dd>
+</dl>
 <p class="formulaDsp">
 \[
      \text{MAE}(y, \hat{y}) = \displaystyle \frac{1}{n} {\sum_{i=1}^n
 |y-\hat{y}|}
  \]
 </p>
- 
+<dl class="section return"><dt>Returns</dt><dd><code>nan_policy::propagate</code>: the MAE. <code>nan_policy::omit</code>: the MAE over finite pairs, and the count of skipped (non-finite) pairs. </dd></dl>
+
 </div>
 </div>
-<a id="gab03ed83f3485b1f9bd46ebabafa71cc1" name="gab03ed83f3485b1f9bd46ebabafa71cc1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gab03ed83f3485b1f9bd46ebabafa71cc1">&#9670;&#160;</a></span>mean_absolute_error() <span class="overload">[2/2]</span></h2>
+<a id="ga65702a7f8929d6c88ae0d43540f13a86" name="ga65702a7f8929d6c88ae0d43540f13a86"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga65702a7f8929d6c88ae0d43540f13a86">&#9670;&#160;</a></span>mean_absolute_error() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </div>
+template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -320,7 +334,7 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double
+          <td></td><td> -&gt; std::conditional_t&lt;Policy == nan_policy::omit, std::pair&lt;double, std::size_t&gt;, double&gt;
 </td>
         </tr>
       </table>
@@ -331,7 +345,7 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
 </table>
 </div><div class="memdoc">
 
-<p>Weighted mean absolute error. </p>
+<p>Weighted variant of <code>mean_absolute_error</code>. </p>
 <p class="formulaDsp">
 \[
      \text{MAE}(y, \hat{y}) = \displaystyle \frac{1}{\sum_{i=1}^n w_i}
@@ -460,13 +474,13 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
  
 </div>
 </div>
-<a id="gad735d45692f174d15fd1d3f64f2ff934" name="gad735d45692f174d15fd1d3f64f2ff934"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gad735d45692f174d15fd1d3f64f2ff934">&#9670;&#160;</a></span>mean_squared_error() <span class="overload">[1/2]</span></h2>
+<a id="ga57e365a2822e5c2e3bf673883c76a05e" name="ga57e365a2822e5c2e3bf673883c76a05e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga57e365a2822e5c2e3bf673883c76a05e">&#9670;&#160;</a></span>mean_squared_error() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J&gt; </div>
+template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -492,7 +506,7 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double
+          <td></td><td> -&gt; std::conditional_t&lt;Policy == nan_policy::omit, std::pair&lt;double, std::size_t&gt;, double&gt;
 </td>
         </tr>
       </table>
@@ -504,22 +518,29 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
 </div><div class="memdoc">
 
 <p>Computes the mean squared error. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Policy</td><td><code>nan_policy::propagate</code> (default): a non-finite value poisons the whole result. <code>nan_policy::omit</code>: rows where either value is non-finite are skipped rather than poisoning the whole result.</td></tr>
+  </table>
+  </dd>
+</dl>
 <p class="formulaDsp">
 \[
      \text{MSE}(y, \hat{y}) = \displaystyle \frac{1}{n} {\sum_{i=1}^n
 \left(y-\hat{y}\right)^2}
  \]
 </p>
- 
+<dl class="section return"><dt>Returns</dt><dd><code>nan_policy::propagate</code>: the MSE. <code>nan_policy::omit</code>: the MSE over finite pairs, and the count of skipped (non-finite) pairs. </dd></dl>
+
 </div>
 </div>
-<a id="ga8fdd0d0b6a83d4426d3fbe090e817438" name="ga8fdd0d0b6a83d4426d3fbe090e817438"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga8fdd0d0b6a83d4426d3fbe090e817438">&#9670;&#160;</a></span>mean_squared_error() <span class="overload">[2/2]</span></h2>
+<a id="ga7ae31ed8ff05287689a08193e57349f9" name="ga7ae31ed8ff05287689a08193e57349f9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga7ae31ed8ff05287689a08193e57349f9">&#9670;&#160;</a></span>mean_squared_error() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </div>
+template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -551,7 +572,7 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td> -&gt; double
+          <td></td><td> -&gt; std::conditional_t&lt;Policy == nan_policy::omit, std::pair&lt;double, std::size_t&gt;, double&gt;
 </td>
         </tr>
       </table>
@@ -562,7 +583,7 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
 </table>
 </div><div class="memdoc">
 
-<p>Computes the weighted mean squared error. </p>
+<p>Weighted variant of <code>mean_squared_error</code>. </p>
 <p class="formulaDsp">
 \[
      \text{MSE}(y, \hat{y}) = {\displaystyle \frac{1}{\sum_{i=1}^n w_i}}
@@ -682,6 +703,68 @@ template&lt;std::floating_point T, std::contiguous_iterator I, std::contiguous_i
  \]
 </p>
  
+</div>
+</div>
+<a id="ga106b45d8af3850771e842686e25a7d09" name="ga106b45d8af3850771e842686e25a7d09"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga106b45d8af3850771e842686e25a7d09">&#9670;&#160;</a></span>normalized_mean_squared_error()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;std::floating_point T, nan_policy Policy = nan_policy::propagate, std::contiguous_iterator I, std::contiguous_iterator J&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">auto normalized_mean_squared_error </td>
+          <td>(</td>
+          <td class="paramtype">I&#160;</td>
+          <td class="paramname"><em>first1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">I&#160;</td>
+          <td class="paramname"><em>last1</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">J&#160;</td>
+          <td class="paramname"><em>first2</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> -&gt; std::conditional_t&lt;Policy == nan_policy::omit, std::pair&lt;double, std::size_t&gt;, double&gt;
+</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Normalized mean squared error over (estimated, target) pairs. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Policy</td><td><code>nan_policy::propagate</code> (default): a non-finite value poisons the whole result. <code>nan_policy::omit</code>: rows where either value is non-finite are skipped rather than poisoning the whole result &ndash; the target variance is computed over the same finite subset (the mask is shared), keeping the numerator and denominator consistent.</td></tr>
+  </table>
+  </dd>
+</dl>
+<p>Single pass over the input in both modes: the residual mean and target variance accumulators run in lockstep, instead of composing two independent passes.</p>
+<p class="formulaDsp">
+\[
+     \text{NMSE}(y, \hat{y}) = \frac{
+         \overline{(y - \hat{y})^2}
+     }{ \text{Var}(y) }
+ \]
+</p>
+<dl class="section return"><dt>Returns</dt><dd><code>nan_policy::propagate</code>: the NMSE (0.0 if the target variance is 0). <code>nan_policy::omit</code>: the NMSE over finite pairs (0.0 if the target variance over that subset is 0), and the count of skipped (non-finite) pairs. </dd></dl>
+
 </div>
 </div>
 <a id="ga6f5357e8f72dddcfe97c7af2654eeef9" name="ga6f5357e8f72dddcfe97c7af2654eeef9"></a>
