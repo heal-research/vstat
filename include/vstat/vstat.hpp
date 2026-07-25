@@ -589,6 +589,118 @@ inline auto accumulate(
     }
     return bivariate_statistics(acc);
 }
+
+/*!
+    \ingroup Bivariate
+
+    \brief Bivariate statistics over the finite subset of two paired
+    sequences -- rows where either input is non-finite are skipped rather
+    than poisoning the whole result.
+
+    \return The accumulated bivariate statistics over finite pairs, and the
+    count of skipped (non-finite) pairs.
+*/
+template<std::floating_point T,
+         std::random_access_iterator I,
+         std::random_access_iterator J>
+    requires std::is_arithmetic_v<std::iter_value_t<I>>
+          && std::is_arithmetic_v<std::iter_value_t<J>>
+inline auto accumulate_finite(I first1, I last1, J first2) noexcept
+    -> std::pair<bivariate_statistics, std::size_t>
+{
+    using wide = eve::wide<T>;
+    auto constexpr s {wide::size()};
+    auto const n {std::distance(first1, last1)};
+    auto const m = n - n % s;
+
+    bivariate_accumulator<wide> acc;
+    wide skipped {0};
+    for (size_t i = 0; i < m; i += s) {
+        wide a {first1};
+        wide b {first2};
+        auto finite = eve::is_finite(a) && eve::is_finite(b);
+        if (eve::all(finite)) [[likely]] {
+            // Match plain bivariate::accumulate's call shape (2-arg
+            // unweighted), which delegates to the weighted overload with
+            // w=1 -- keeps one source of truth for the Welford update and
+            // avoids the reader asking why the masked fast path takes a
+            // different call shape than the unmasked accumulate.
+            acc(a, b);
+        } else {
+            wide sa = eve::if_else(finite, a, wide {0});
+            wide sb = eve::if_else(finite, b, wide {0});
+            wide w  = eve::if_else(finite, wide {1}, wide {0});
+            acc(sa, sb, w);
+            skipped += eve::if_else(finite, wide {0}, wide {1});
+        }
+        detail::advance(s, first1, first2);
+    }
+
+    auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
+    auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
+    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+    for (; first1 < last1; ++first1, ++first2) {
+        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+        T sa = finite ? *first1 : T {0};
+        T sb = finite ? *first2 : T {0};
+        be(sa, sb, finite ? T {1} : T {0});
+        skippedCount += finite ? 0UL : 1UL;
+    }
+    return {bivariate_statistics(be), skippedCount};
+}
+
+/*!
+    \ingroup Bivariate
+
+    \brief Weighted variant of `accumulate_finite`: folds a caller-supplied
+    weight into the finite mask (`w' = finite ? w : 0`).
+*/
+template<std::floating_point T,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
+         std::random_access_iterator K>
+    requires std::is_arithmetic_v<std::iter_value_t<I>>
+          && std::is_arithmetic_v<std::iter_value_t<J>>
+          && std::is_arithmetic_v<std::iter_value_t<K>>
+inline auto accumulate_finite(I first1, I last1, J first2, K first3) noexcept
+    -> std::pair<bivariate_statistics, std::size_t>
+{
+    using wide = eve::wide<T>;
+    auto constexpr s {wide::size()};
+    auto const n {std::distance(first1, last1)};
+    auto const m = n - n % s;
+
+    bivariate_accumulator<wide> acc;
+    wide skipped {0};
+    for (size_t i = 0; i < m; i += s) {
+        wide a {first1};
+        wide b {first2};
+        wide weight {first3};
+        auto finite = eve::is_finite(a) && eve::is_finite(b);
+        if (eve::all(finite)) [[likely]] {
+            acc(a, b, weight);
+        } else {
+            wide sa = eve::if_else(finite, a, wide {0});
+            wide sb = eve::if_else(finite, b, wide {0});
+            wide w  = eve::if_else(finite, weight, wide {0});
+            acc(sa, sb, w);
+            skipped += eve::if_else(finite, wide {0}, wide {1});
+        }
+        detail::advance(s, first1, first2, first3);
+    }
+
+    auto [sw, sx, sy, sxx, syy, sxy] = acc.stats();
+    auto be = bivariate_accumulator<T>::load_state(sx, sy, sw, sxx, syy, sxy);
+    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+    for (; first1 < last1; ++first1, ++first2, ++first3) {
+        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+        T sa = finite ? *first1 : T {0};
+        T sb = finite ? *first2 : T {0};
+        be(sa, sb, finite ? *first3 : T {0});
+        skippedCount += finite ? 0UL : 1UL;
+    }
+    return {bivariate_statistics(be), skippedCount};
+}
 }  // namespace bivariate
 
 namespace metrics
@@ -789,6 +901,128 @@ inline auto mean_squared_error_finite(I first1, I last1, J first2, K first3) noe
     auto [st, skipped] = univariate::accumulate_finite<T, stats::mean>(
         first1, last1, first2, first3, [](auto a, auto b) { return eve::sqr(a - b); });
     return {st.mean, skipped};
+}
+
+/*!
+    \ingroup Metrics
+
+    \brief Normalized mean squared error over the finite subset of
+    (estimated, target) pairs -- rows where either value is non-finite are
+    skipped rather than poisoning the whole result. The target variance is
+    computed over the same finite subset (the mask is shared), keeping the
+    numerator and denominator consistent. Single pass over the input: the
+    residual mean and target variance accumulators run in lockstep, halving
+    the cost of the two-pass `NormalizedMeanSquaredErrorFinite` composition
+    that the operon error-metrics header used previously.
+
+    \f[
+        \text{NMSE}_{\text{finite}}(y, \hat{y}) = \frac{
+            \overline{(y - \hat{y})^2}_{\text{finite}}
+        }{ \text{Var}_{\text{finite}}(y) }
+    \f]
+
+    \return The NMSE over finite pairs (0.0 if the target variance is 0),
+    and the count of skipped (non-finite) pairs.
+*/
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto normalized_mean_squared_error_finite(I first1, I last1, J first2) noexcept -> std::pair<double, std::size_t>
+{
+    using wide = eve::wide<T>;
+    auto constexpr s {wide::size()};
+    auto const n {std::distance(first1, last1)};
+    auto const m = n - n % s;
+
+    univariate_accumulator<wide, stats::mean> we;      // residual mean: <(a-b)^2>
+    univariate_accumulator<wide, stats::variance> wv;  // target variance: Var(b)
+    wide skipped {0};
+    for (size_t i = 0; i < m; i += s) {
+        wide a {first1};
+        wide b {first2};
+        auto finite = eve::is_finite(a) && eve::is_finite(b);
+        if (eve::all(finite)) [[likely]] {
+            we(eve::sqr(a - b));
+            wv(b);
+        } else {
+            wide sa = eve::if_else(finite, a, wide {0});
+            wide sb = eve::if_else(finite, b, wide {0});
+            wide w  = eve::if_else(finite, wide {1}, wide {0});
+            // mask carried by weight -- the weighted overload's
+            // zero-denominator guard handles lanes whose first contribution
+            // is zero-weighted without NaN-poisoning the accumulator state.
+            we(eve::sqr(sa - sb), w);
+            wv(sb, w);
+            skipped += eve::if_else(finite, wide {0}, wide {1});
+        }
+        detail::advance(s, first1, first2);
+    }
+
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+    auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
+    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+    for (; first1 < last1; ++first1, ++first2) {
+        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+        T sa = finite ? *first1 : T {0};
+        T sb = finite ? *first2 : T {0};
+        se(eve::sqr(sa - sb), finite ? T {1} : T {0});
+        sv(sb, finite ? T {1} : T {0});
+        skippedCount += finite ? 0UL : 1UL;
+    }
+
+    auto const mean = univariate_statistics(se).mean;
+    auto const var  = univariate_statistics(sv).variance;
+    return {var > 0.0 ? mean / var : 0.0, skippedCount};
+}
+
+/*!
+    \ingroup Metrics
+
+    \brief Weighted variant of `normalized_mean_squared_error_finite`.
+*/
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto normalized_mean_squared_error_finite(I first1, I last1, J first2, K first3) noexcept -> std::pair<double, std::size_t>
+{
+    using wide = eve::wide<T>;
+    auto constexpr s {wide::size()};
+    auto const n {std::distance(first1, last1)};
+    auto const m = n - n % s;
+
+    univariate_accumulator<wide, stats::mean> we;
+    univariate_accumulator<wide, stats::variance> wv;
+    wide skipped {0};
+    for (size_t i = 0; i < m; i += s) {
+        wide a {first1};
+        wide b {first2};
+        wide weight {first3};
+        auto finite = eve::is_finite(a) && eve::is_finite(b);
+        if (eve::all(finite)) [[likely]] {
+            we(eve::sqr(a - b), weight);
+            wv(b, weight);
+        } else {
+            wide sa = eve::if_else(finite, a, wide {0});
+            wide sb = eve::if_else(finite, b, wide {0});
+            wide w  = eve::if_else(finite, weight, wide {0});
+            we(eve::sqr(sa - sb), w);
+            wv(sb, w);
+            skipped += eve::if_else(finite, wide {0}, wide {1});
+        }
+        detail::advance(s, first1, first2, first3);
+    }
+
+    auto se = univariate_accumulator<T, stats::mean>::load_state(we.stats());
+    auto sv = univariate_accumulator<T, stats::variance>::load_state(wv.stats());
+    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+    for (; first1 < last1; ++first1, ++first2, ++first3) {
+        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+        T sa = finite ? *first1 : T {0};
+        T sb = finite ? *first2 : T {0};
+        se(eve::sqr(sa - sb), finite ? *first3 : T {0});
+        sv(sb, finite ? *first3 : T {0});
+        skippedCount += finite ? 0UL : 1UL;
+    }
+
+    auto const mean = univariate_statistics(se).mean;
+    auto const var  = univariate_statistics(sv).variance;
+    return {var > 0.0 ? mean / var : 0.0, skippedCount};
 }
 
 /*!
