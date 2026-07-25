@@ -770,6 +770,65 @@ TEST_CASE("mean_squared_error_finite / mean_absolute_error_finite", "[correctnes
     SECTION("float")  { test.operator()<float>(count_medium, 1e-3); }
 }
 
+TEST_CASE("normalized_mean_squared_error_finite", "[correctness]")
+{
+    std::mt19937 rng {1234};
+
+    // Two properties verified per case:
+    //  (a) one-pass result equals the two-pass reference
+    //      mean(sqr(xf - yf)) / variance(yf) over the hand-built finite
+    //      subset; same on the weighted side.
+    //  (b) skipped count matches the number of injected non-finite pairs.
+    auto test = [&]<typename T>(int n, T eps) {
+        auto x = test_util::generate<T>(rng, n);
+        auto y = test_util::generate<T>(rng, n);
+        auto w = test_util::generate<T>(rng, n, T{0.1}, T{2});
+
+        // inject non-finite predictions at a handful of indices, including
+        // the very first and very last positions so the SIMD fast-path
+        // (all-finite chunk) and the scalar tail both see masking pressure.
+        auto const inject = [&](int idx) {
+            x[idx] = (idx % 2) ? std::numeric_limits<T>::quiet_NaN()
+                               : std::numeric_limits<T>::infinity();
+        };
+        inject(0);
+        inject(n / 3);
+        inject(n / 2);
+        inject(n - 1);
+        std::size_t const expectedSkipped = 4;
+
+        std::vector<T> xf, yf, wf;
+        for (int i = 0; i < n; ++i) {
+            if (std::isfinite(x[i]) && std::isfinite(y[i])) {
+                xf.push_back(x[i]);
+                yf.push_back(y[i]);
+                wf.push_back(w[i]);
+            }
+        }
+
+        // Unweighted reference over the hand-built finite subset.
+        auto mseRef = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin());
+        auto varYRef = uv::accumulate<T>(yf.begin(), yf.end()).variance;
+        auto nmseRef = varYRef > 0.0 ? mseRef / varYRef : 0.0;
+
+        auto [nmse, skipped] = mv::normalized_mean_squared_error_finite<T>(x.begin(), x.end(), y.begin());
+        REQUIRE(skipped == expectedSkipped);
+        REQUIRE(test_util::equal<T>(static_cast<T>(nmse), static_cast<T>(nmseRef), eps));
+
+        // Weighted reference: NMSE(y, yhat, w) = mean(sqr(xf-yf), wf) / variance(yf, wf)
+        auto wmseRef = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
+        auto wvarYRef = uv::accumulate<T>(yf.begin(), yf.end(), wf.begin()).variance;
+        auto wnmseRef = wvarYRef > 0.0 ? wmseRef / wvarYRef : 0.0;
+
+        auto [wnmse, wskipped] = mv::normalized_mean_squared_error_finite<T>(x.begin(), x.end(), y.begin(), w.begin());
+        REQUIRE(wskipped == expectedSkipped);
+        REQUIRE(test_util::equal<T>(static_cast<T>(wnmse), static_cast<T>(wnmseRef), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-5); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-3); }
+}
+
 TEST_CASE("poisson_neg_likelihood_loss", "[correctness]")
 {
     std::mt19937 rng {1234};
