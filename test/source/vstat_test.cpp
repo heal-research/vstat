@@ -20,6 +20,7 @@ namespace nb = ankerl::nanobench;
 
 namespace uv = vstat::univariate;
 namespace bv = vstat::bivariate;
+namespace mv = vstat::metrics;
 
 namespace test_util
 {
@@ -538,6 +539,118 @@ TEST_CASE("weighted covariance all-zero weights", "[correctness]")
     SECTION("float")  { test.operator()<float>(); }
 }
 
+TEST_CASE("accumulate_finite all-finite matches accumulate", "[correctness]")
+{
+    // With no non-finite values, accumulate_finite must reproduce the plain
+    // (unmasked) accumulate exactly -- the mask is a no-op.
+    std::mt19937 rng {1234};
+
+    auto test = [&]<typename T>(int n, T eps) {
+        auto x = test_util::generate<T>(rng, n);
+        auto y = test_util::generate<T>(rng, n);
+
+        auto [st, skipped] = uv::accumulate_finite<T, vstat::stats::mean>(
+            x.begin(), x.end(), y.begin(), [](auto a, auto /*b*/) { return a; });
+        auto ref = uv::accumulate<T, vstat::stats::mean>(x.begin(), x.end());
+
+        REQUIRE(skipped == 0UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.mean), static_cast<T>(ref.mean), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-6); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-5); }
+}
+
+TEST_CASE("accumulate_finite skips non-finite pairs", "[correctness]")
+{
+    auto test = [&]<typename T>() {
+        std::vector<T> x {T{1}, T{2}, std::numeric_limits<T>::quiet_NaN(), T{4}, T{5}, T{6}, T{7}, T{8}};
+        std::vector<T> y {T{1}, T{2}, T{3},                                 T{4}, std::numeric_limits<T>::infinity(), T{6}, T{7}, T{8}};
+
+        auto [st, skipped] = uv::accumulate_finite<T, vstat::stats::mean>(
+            x.begin(), x.end(), y.begin(), [](auto a, auto /*b*/) { return a; });
+
+        REQUIRE(skipped == 2UL);
+
+        // reference: manually filtered finite-pair subset {1,2,4,6,7,8}
+        std::vector<T> ref {T{1}, T{2}, T{4}, T{6}, T{7}, T{8}};
+        auto refStats = uv::accumulate<T, vstat::stats::mean>(ref.begin(), ref.end());
+
+        REQUIRE(std::isfinite(st.mean));
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.mean), static_cast<T>(refStats.mean), T{1e-5}));
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
+TEST_CASE("accumulate_finite all-non-finite", "[correctness]")
+{
+    // Degenerate case: every pair non-finite. Must not crash or poison state
+    // with NaN -- skipped count equals n, accumulated stats are the clean
+    // zero-weight state (mean/variance legitimately NaN via 0/0, matching the
+    // existing all-zero-weight accumulator contract).
+    auto test = [&]<typename T>() {
+        std::vector<T> x {std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::infinity(), T{1}};
+        std::vector<T> y {T{1}, T{2}, std::numeric_limits<T>::quiet_NaN()};
+
+        auto [st, skipped] = uv::accumulate_finite<T, vstat::stats::mean>(
+            x.begin(), x.end(), y.begin(), [](auto a, auto /*b*/) { return a; });
+
+        REQUIRE(skipped == 3UL);
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
+TEST_CASE("mean_squared_error_finite / mean_absolute_error_finite", "[correctness]")
+{
+    std::mt19937 rng {1234};
+
+    auto test = [&]<typename T>(int n, T eps) {
+        auto x = test_util::generate<T>(rng, n);
+        auto y = test_util::generate<T>(rng, n);
+        auto w = test_util::generate<T>(rng, n, T{0.1}, T{2});
+
+        // inject a few non-finite predictions
+        x[0] = std::numeric_limits<T>::quiet_NaN();
+        x[n / 2] = std::numeric_limits<T>::infinity();
+
+        std::vector<T> xf, yf, wf;
+        for (int i = 0; i < n; ++i) {
+            if (std::isfinite(x[i]) && std::isfinite(y[i])) {
+                xf.push_back(x[i]);
+                yf.push_back(y[i]);
+                wf.push_back(w[i]);
+            }
+        }
+
+        auto [mse, skippedMse] = mv::mean_squared_error_finite<T>(x.begin(), x.end(), y.begin());
+        auto mseRef = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin());
+        REQUIRE(skippedMse == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(mse), static_cast<T>(mseRef), eps));
+
+        auto [mae, skippedMae] = mv::mean_absolute_error_finite<T>(x.begin(), x.end(), y.begin());
+        auto maeRef = mv::mean_absolute_error<T>(xf.begin(), xf.end(), yf.begin());
+        REQUIRE(skippedMae == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(mae), static_cast<T>(maeRef), eps));
+
+        auto [wmse, wSkippedMse] = mv::mean_squared_error_finite<T>(x.begin(), x.end(), y.begin(), w.begin());
+        auto wmseRef = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
+        REQUIRE(wSkippedMse == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(wmse), static_cast<T>(wmseRef), eps));
+
+        auto [wmae, wSkippedMae] = mv::mean_absolute_error_finite<T>(x.begin(), x.end(), y.begin(), w.begin());
+        auto wmaeRef = mv::mean_absolute_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
+        REQUIRE(wSkippedMae == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(wmae), static_cast<T>(wmaeRef), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-5); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-3); }
+}
+
 TEST_CASE("poisson_neg_likelihood_loss", "[correctness]")
 {
     std::mt19937 rng {1234};
@@ -765,6 +878,35 @@ TEST_CASE("benchmarks", "[performance]")
             [&]() -> void
             { m += bv::accumulate<float>(xf.begin(), xf.end(), yf.begin(), wf.begin()).covariance; });
         bench.batch(s).run("boost.accu", [&]() -> void { m += stat_other::boost::covariance(xf, yf, wf); });
+    }
+    bench.render(test_util::csv(), std::cout);
+}
+
+TEST_CASE("masked vs unmasked mean squared error", "[performance]")
+{
+    // Isolates whether folding an is_finite mask into the weight (skip-non-
+    // finite-rows via accumulate_finite) costs anything over the existing
+    // unmasked path, on all-finite data (so both compute the same result).
+    std::mt19937 rng {1234};
+
+    nb::Bench bench;
+    for (auto s = 1000; s <= 1024 * 1024; s *= 2) {
+        auto xd = test_util::generate<double>(rng, s);
+        auto yd = test_util::generate<double>(rng, s);
+        auto xf = test_util::generate<float>(rng, s);
+        auto yf = test_util::generate<float>(rng, s);
+
+        double m {0.0};
+
+        bench.context("dtype", "double");
+        bench.context("statistic", "mean squared error");
+        bench.batch(s).run("unmasked", [&]() -> void { m += mv::mean_squared_error<double>(xd.begin(), xd.end(), yd.begin()); });
+        bench.batch(s).run("masked (finite)", [&]() -> void { m += mv::mean_squared_error_finite<double>(xd.begin(), xd.end(), yd.begin()).first; });
+
+        bench.context("dtype", "float");
+        bench.context("statistic", "mean squared error");
+        bench.batch(s).run("unmasked", [&]() -> void { m += mv::mean_squared_error<float>(xf.begin(), xf.end(), yf.begin()); });
+        bench.batch(s).run("masked (finite)", [&]() -> void { m += mv::mean_squared_error_finite<float>(xf.begin(), xf.end(), yf.begin()).first; });
     }
     bench.render(test_util::csv(), std::cout);
 }

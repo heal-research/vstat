@@ -46,6 +46,12 @@ auto inline advance(Distance d, Iters&... iters) -> void
 {
     (std::advance(iters, d), ...);
 }
+
+// default binary projection for accumulate_finite: keep the first sequence's value
+struct first_of_pair {
+    template<typename A, typename B>
+    constexpr auto operator()(A a, B /*b*/) const noexcept { return a; }
+};
 }  // namespace detail
 
 namespace concepts
@@ -325,6 +331,149 @@ inline auto accumulate(I first1,
         return univariate_statistics(scalar_acc);
     }
     return univariate_statistics(acc);
+}
+
+/*!
+    \ingroup Univariate
+
+    \brief Accumulates \f$f(a,b)\f$ over two paired sequences, skipping (zero
+   weight) any position where either input is non-finite.
+
+    The finiteness check happens on the already-loaded SIMD lanes, so this
+   costs one extra compare+select per chunk over the unmasked `accumulate` --
+   no extra pass over the data and no buffer.
+
+    \tparam T The scalar value type underlying the `eve::wide<T>` SIMD type
+   used to compute the stats
+    \tparam Stats Which stats to compute
+    \tparam F Binary projection \f$f(a,b) \to c\f$ accumulated for finite pairs
+
+    \param first1 The begin iterator for the first sequence (checked for finiteness)
+    \param last1  The end iterator for the first sequence
+    \param first2 The begin iterator for the second sequence (checked for finiteness)
+    \param f      A binary projection mapping \f$(a, b)\f$ to the scalar value
+   accumulated for that (finite) pair
+
+    \return The accumulated statistics over finite pairs, and the count of
+   skipped (non-finite) pairs.
+*/
+template<std::floating_point T,
+         stats Stats = stats::variance,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
+         typename F = detail::first_of_pair>
+    requires concepts::arithmetic_projection<F, std::iter_value_t<I>, std::iter_value_t<J>>
+inline auto accumulate_finite(I first1, I last1, J first2, F&& f = F {}) noexcept -> std::pair<univariate_statistics, std::size_t>
+{
+    using wide = eve::wide<T>;
+    auto constexpr s {wide::size()};
+    auto const n {std::distance(first1, last1)};
+    auto const m = n - n % s;
+
+    univariate_accumulator<wide, Stats> acc;
+    wide skipped {0};
+    for (size_t i = 0; i < m; i += s) {
+        wide a {first1};
+        wide b {first2};
+        // is_finite(x) is defined as is_not_nan(x - x) (per eve's own docs),
+        // so is_finite(a) && is_finite(b) is is_eqz(a-a) && is_eqz(b-b) --
+        // one is_finite call and no logical-and, same result: the sum is 0
+        // iff both are finite, NaN/Inf propagates through it otherwise.
+        auto finite = eve::is_finite((a - a) + (b - b));
+        if (eve::all(finite)) [[likely]] {
+            // Common case: the whole chunk is finite. Take the same cheap
+            // path the unmasked accumulate uses (no is_finite-driven select,
+            // no skip-count bookkeeping) -- the unweighted operator() with
+            // weight-of-1-per-lane is state-compatible with the weighted one
+            // below, so mixing them across chunks is safe.
+            acc(std::invoke(f, a, b));
+        } else {
+            // Zeroing only the weight is not enough: NaN/Inf * 0 == NaN, so a
+            // non-finite value would still poison the accumulator through the
+            // projection even at weight 0. Sanitize the values themselves too.
+            wide sa = eve::if_else(finite, a, wide {0});
+            wide sb = eve::if_else(finite, b, wide {0});
+            wide w = eve::if_else(finite, wide {1}, wide {0});
+            acc(std::invoke(f, sa, sb), w);
+            skipped += eve::if_else(finite, wide {0}, wide {1});
+        }
+        detail::advance(s, first1, first2);
+    }
+
+    auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
+    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+    for (; first1 < last1; ++first1, ++first2) {
+        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+        T sa = finite ? *first1 : T {0};
+        T sb = finite ? *first2 : T {0};
+        se(std::invoke(f, sa, sb), finite ? T {1} : T {0});
+        skippedCount += finite ? 0UL : 1UL;
+    }
+    return {univariate_statistics(se), skippedCount};
+}
+
+/*!
+    \ingroup Univariate
+
+    \brief Weighted variant of `accumulate_finite`: folds a caller-supplied
+   weight into the finite mask (`w' = finite ? w : 0`) instead of a flat 0/1
+   weight.
+
+    \param first3 The begin iterator for the caller-supplied weights
+*/
+template<std::floating_point T,
+         stats Stats = stats::variance,
+         std::random_access_iterator I,
+         std::random_access_iterator J,
+         std::random_access_iterator K,
+         typename F = detail::first_of_pair>
+    requires std::is_arithmetic_v<std::iter_value_t<K>>
+    && concepts::arithmetic_projection<F, std::iter_value_t<I>, std::iter_value_t<J>>
+inline auto accumulate_finite(I first1, I last1, J first2, K first3, F&& f = F {}) noexcept -> std::pair<univariate_statistics, std::size_t>
+{
+    using wide = eve::wide<T>;
+    auto constexpr s {wide::size()};
+    auto const n {std::distance(first1, last1)};
+    auto const m = n - n % s;
+
+    univariate_accumulator<wide, Stats> acc;
+    wide skipped {0};
+    for (size_t i = 0; i < m; i += s) {
+        wide a {first1};
+        wide b {first2};
+        wide weight {first3};
+        // is_finite(x) is defined as is_not_nan(x - x) (per eve's own docs),
+        // so is_finite(a) && is_finite(b) is is_eqz(a-a) && is_eqz(b-b) --
+        // one is_finite call and no logical-and, same result: the sum is 0
+        // iff both are finite, NaN/Inf propagates through it otherwise.
+        auto finite = eve::is_finite((a - a) + (b - b));
+        if (eve::all(finite)) [[likely]] {
+            // Common case: no masking/sanitizing needed, just the plain
+            // caller-weighted accumulate (same cost as the unmasked weighted
+            // metric functions already pay).
+            acc(std::invoke(f, a, b), weight);
+        } else {
+            // See the unweighted overload above: zeroing only the weight
+            // isn't enough, NaN/Inf * 0 == NaN. Sanitize the values too.
+            wide sa = eve::if_else(finite, a, wide {0});
+            wide sb = eve::if_else(finite, b, wide {0});
+            wide w = eve::if_else(finite, weight, wide {0});
+            acc(std::invoke(f, sa, sb), w);
+            skipped += eve::if_else(finite, wide {0}, wide {1});
+        }
+        detail::advance(s, first1, first2, first3);
+    }
+
+    auto se = univariate_accumulator<T, Stats>::load_state(acc.stats());
+    auto skippedCount = static_cast<std::size_t>(eve::reduce(skipped));
+    for (; first1 < last1; ++first1, ++first2, ++first3) {
+        bool finite = std::isfinite(*first1) && std::isfinite(*first2);
+        T sa = finite ? *first1 : T {0};
+        T sb = finite ? *first2 : T {0};
+        se(std::invoke(f, sa, sb), finite ? *first3 : T {0});
+        skippedCount += finite ? 0UL : 1UL;
+    }
+    return {univariate_statistics(se), skippedCount};
 }
 }  // namespace univariate
 
@@ -633,6 +782,37 @@ inline auto mean_squared_error(I first1, I last1, J first2, K first3) noexcept -
 /*!
     \ingroup Metrics
 
+    \brief Mean squared error over the finite subset of (first1, first2)
+   pairs -- rows where either value is non-finite are skipped rather than
+   poisoning the whole result.
+
+    \return The MSE over finite pairs, and the count of skipped (non-finite)
+   pairs.
+*/
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_squared_error_finite(I first1, I last1, J first2) noexcept -> std::pair<double, std::size_t>
+{
+    auto [st, skipped] = univariate::accumulate_finite<T, stats::mean>(
+        first1, last1, first2, [](auto a, auto b) { return eve::sqr(a - b); });
+    return {st.mean, skipped};
+}
+
+/*!
+    \ingroup Metrics
+
+    \brief Weighted variant of `mean_squared_error_finite`.
+*/
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_squared_error_finite(I first1, I last1, J first2, K first3) noexcept -> std::pair<double, std::size_t>
+{
+    auto [st, skipped] = univariate::accumulate_finite<T, stats::mean>(
+        first1, last1, first2, first3, [](auto a, auto b) { return eve::sqr(a - b); });
+    return {st.mean, skipped};
+}
+
+/*!
+    \ingroup Metrics
+
     \brief Computes the mean squared logarithmic error
 
     \f[
@@ -766,6 +946,37 @@ inline auto mean_absolute_error(I first1, I last1, J first2, K first3) noexcept 
         se(eve::abs(*first1 - *first2), *first3);
     }
     return univariate_statistics(se).mean;
+}
+
+/*!
+    \ingroup Metrics
+
+    \brief Mean absolute error over the finite subset of (first1, first2)
+   pairs -- rows where either value is non-finite are skipped rather than
+   poisoning the whole result.
+
+    \return The MAE over finite pairs, and the count of skipped (non-finite)
+   pairs.
+*/
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J>
+inline auto mean_absolute_error_finite(I first1, I last1, J first2) noexcept -> std::pair<double, std::size_t>
+{
+    auto [st, skipped] = univariate::accumulate_finite<T, stats::mean>(
+        first1, last1, first2, [](auto a, auto b) { return eve::abs(a - b); });
+    return {st.mean, skipped};
+}
+
+/*!
+    \ingroup Metrics
+
+    \brief Weighted variant of `mean_absolute_error_finite`.
+*/
+template<std::floating_point T, std::contiguous_iterator I, std::contiguous_iterator J, std::contiguous_iterator K>
+inline auto mean_absolute_error_finite(I first1, I last1, J first2, K first3) noexcept -> std::pair<double, std::size_t>
+{
+    auto [st, skipped] = univariate::accumulate_finite<T, stats::mean>(
+        first1, last1, first2, first3, [](auto a, auto b) { return eve::abs(a - b); });
+    return {st.mean, skipped};
 }
 
 /*!
