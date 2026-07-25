@@ -38,20 +38,18 @@ struct bivariate_accumulator
 
     void operator()(T x, T y) noexcept
     {
-        T dx = (x * sum_w) - sum_x;
-        T dy = (y * sum_w) - sum_y;
-
-        sum_w += 1;
-
-        T f = 1. / (sum_w * sum_w_old);
-        sum_xx += f * dx * dx;
-        sum_yy += f * dy * dy;
-        sum_xy += f * dx * dy;
-
-        sum_x += x;
-        sum_y += y;
-
-        sum_w_old = sum_w;
+        // Route through the weighted update with unit weight: the weighted
+        // overload already has the same zero-denominator guard the univariate
+        // univariate accumulator got in d843f76, while the original
+        // unweighted bivariate overload here computed `1/(sum_w * sum_w_old)`
+        // unconditionally and produced 0/0 -> NaN whenever a prior masked
+        // zero-weight call left sum_w_old at 0 (a real path now that
+        // bivariate::accumulate_finite exists). Delegating instead of
+        // duplicating the guard avoids the eve::if_else scalar-arg trap where
+        // `eve::if_else(cond, 1./d, T{0})` with mixed double/float args
+        // pathologically returns `1`, and keeps one implementation of the
+        // Welford update, not two.
+        (*this)(x, y, T{1});
     }
 
     void operator()(T x, T y, T w) noexcept  // NOLINT

@@ -20,6 +20,7 @@ namespace nb = ankerl::nanobench;
 
 namespace uv = vstat::univariate;
 namespace bv = vstat::bivariate;
+namespace mv = vstat::metrics;
 
 namespace test_util
 {
@@ -538,6 +539,340 @@ TEST_CASE("weighted covariance all-zero weights", "[correctness]")
     SECTION("float")  { test.operator()<float>(); }
 }
 
+namespace {
+// Simulate the "masked zero-weight prefix then plain unweighted continue"
+// sequence that bivariate::accumulate<..., nan_policy::omit> exercises on
+// its SIMD tail: it ran the wide accumulator with a weight of zero on
+// every lane of the very first chunk (skipping the first s
+// values), then transferred state into a scalar bivariate_accumulator<T>
+// and called the *unweighted* operator()(T, T) for the remaining tail.
+// Before the fix, that scalar tail update did `1. / (sum_w * sum_w_old)`
+// with sum_w_old == 0 (left there by the masked wide path), giving 0/0 =
+// NaN that got stored into sum_xx unconditionally and poisoned every
+// subsequent scalar tail update.
+template<typename T>
+auto mixed_masked_unweighted_round_trip() -> std::tuple<T, T, T, T, T, T>
+{
+    vstat::bivariate_accumulator<T> acc;
+    // front: all-weight-zero run, leaves sum_w=0, sum_w_old=0 (post masked).
+    for (auto [xi, yi] : std::initializer_list<std::pair<T,T>>{{T{1},T{5}},{T{2},T{4}},{T{3},T{3}}})
+        acc(xi, yi, T{0});
+    // tail: "continue unweighted", must not see 0/0 -> NaN from the prior state.
+    for (auto [xi, yi] : std::initializer_list<std::pair<T,T>>{{T{4},T{2}},{T{5},T{1}}})
+        acc(xi, yi);
+    return acc.stats();
+}
+} // namespace
+
+TEST_CASE("bivariate mixed weighted-zero prefix then unweighted tail", "[correctness]")
+{
+    // Regression test for the latent bivariate zero-denominator bug the
+    // skip-non-finite branch hit only after bivariate::accumulate's
+    // nan_policy::omit path started routing its scalar tail through the
+    // unweighted update: a
+    // zero-weight prefix left sum_w_old at 0 in the wide accumulator, and
+    // the *unweighted* update (called for the residual tail entries) did
+    // `1. / (sum_w * sum_w_old)` unconditionally -> 0/0 = NaN -> stored
+    // into sum_xx, sum_yy, sum_xy, poisoning every subsequent observation.
+    // The fix routes the unweighted update through the (already-guarded)
+    // weighted update with w=1.
+    auto test = [&]<typename T>() {
+        auto [sw, sx, sy, sxx, syy, sxy] = mixed_masked_unweighted_round_trip<T>();
+        REQUIRE(std::isfinite(static_cast<double>(sxx)));
+        REQUIRE(std::isfinite(static_cast<double>(syy)));
+        REQUIRE(std::isfinite(static_cast<double>(sxy)));
+        // Reference: tail-only unweighted stats over the last two pairs
+        // {4,2}, {5,1} (the zero-weight prefix was correctly excluded by
+        // the weighted overload's own guard; the unweighted tail must
+        // reproduce accumulate on {4,2..5,1}).
+        std::vector<T> x {T{4}, T{5}};
+        std::vector<T> y {T{2}, T{1}};
+        auto ref = bv::accumulate<T>(x.begin(), x.end(), y.begin());
+        REQUIRE(test_util::equal<T>(static_cast<T>(sw / sw), T{1}, T{1e-5}));
+        // count is sw (2.0), mean_x = sx/sw, mean_y = sy/sw, variance_x = sxx/sw
+        REQUIRE(test_util::equal<T>(static_cast<T>(sw), static_cast<T>(ref.count), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(sxx / sw), static_cast<T>(ref.ssr_x / ref.count), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(syy / sw), static_cast<T>(ref.ssr_y / ref.count), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(sxy / sw), static_cast<T>(ref.sum_xy / ref.count), T{1e-5}));
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
+namespace {
+// Univariate mirror of mixed_masked_unweighted_round_trip: a masked
+// zero-weight prefix followed by an unweighted tail, targeting
+// univariate_accumulator::operator()(T x) (unweighted, stats::variance)
+// directly rather than reaching it only indirectly through
+// normalized_mean_squared_error's omit path.
+template<typename T>
+auto mixed_masked_unweighted_univariate_round_trip() -> std::tuple<T, T, T>
+{
+    vstat::univariate_accumulator<T, vstat::stats::variance> acc;
+    // front: all-weight-zero run, leaves sum_w=0, sum_w_old=0 (post masked).
+    for (T xi : {T{1}, T{2}, T{3}})
+        acc(xi, T{0});
+    // tail: "continue unweighted", must not see 0/0 -> NaN from the prior state.
+    for (T xi : {T{4}, T{5}})
+        acc(xi);
+    return acc.stats();
+}
+} // namespace
+
+TEST_CASE("univariate mixed weighted-zero prefix then unweighted tail", "[correctness]")
+{
+    // Regression test for the latent univariate zero-denominator bug: a
+    // zero-weight prefix left sum_w_old at 0, and the *unweighted* update
+    // (operator()(T x)) did `(dx*dx) / (sum_w * sum_w_old)` unconditionally
+    // -> 0/0 = NaN, stored into sum_xx unconditionally, poisoning every
+    // subsequent observation. Fixed by guarding the unweighted update the
+    // same way the weighted one already was.
+    auto test = [&]<typename T>() {
+        auto [sw, sx, sxx] = mixed_masked_unweighted_univariate_round_trip<T>();
+        REQUIRE(std::isfinite(static_cast<double>(sxx)));
+        // Reference: tail-only stats over {4, 5} (the zero-weight prefix was
+        // correctly excluded by the weighted overload's own guard).
+        std::vector<T> ref {T{4}, T{5}};
+        auto ref_stats = uv::accumulate<T, vstat::stats::variance>(ref.begin(), ref.end());
+        REQUIRE(test_util::equal<T>(static_cast<T>(sw), static_cast<T>(ref_stats.count), T{1e-5}));
+        REQUIRE(test_util::equal<T>(static_cast<T>(sxx / sw), static_cast<T>(ref_stats.variance), T{1e-5}));
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
+TEST_CASE("accumulate<nan_policy::omit> all-finite matches accumulate", "[correctness]")
+{
+    // With no non-finite values, accumulate<..., nan_policy::omit> must
+    // reproduce the plain (unmasked) accumulate exactly -- the mask is a no-op.
+    std::mt19937 rng {1234};
+
+    auto test = [&]<typename T>(int n, T eps) {
+        auto x = test_util::generate<T>(rng, n);
+        auto y = test_util::generate<T>(rng, n);
+
+        auto [st, skipped] = uv::accumulate<T, vstat::stats::mean, vstat::nan_policy::omit>(
+            x.begin(), x.end(), y.begin(), [](auto a, auto /*b*/) { return a; });
+        auto ref = uv::accumulate<T, vstat::stats::mean>(x.begin(), x.end());
+
+        REQUIRE(skipped == 0UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.mean), static_cast<T>(ref.mean), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-6); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-5); }
+}
+
+TEST_CASE("accumulate<nan_policy::omit> skips non-finite pairs", "[correctness]")
+{
+    auto test = [&]<typename T>() {
+        std::vector<T> x {T{1}, T{2}, std::numeric_limits<T>::quiet_NaN(), T{4}, T{5}, T{6}, T{7}, T{8}};
+        std::vector<T> y {T{1}, T{2}, T{3},                                 T{4}, std::numeric_limits<T>::infinity(), T{6}, T{7}, T{8}};
+
+        auto [st, skipped] = uv::accumulate<T, vstat::stats::mean, vstat::nan_policy::omit>(
+            x.begin(), x.end(), y.begin(), [](auto a, auto /*b*/) { return a; });
+
+        REQUIRE(skipped == 2UL);
+
+        // reference: manually filtered finite-pair subset {1,2,4,6,7,8}
+        std::vector<T> ref {T{1}, T{2}, T{4}, T{6}, T{7}, T{8}};
+        auto ref_stats = uv::accumulate<T, vstat::stats::mean>(ref.begin(), ref.end());
+
+        REQUIRE(std::isfinite(st.mean));
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.mean), static_cast<T>(ref_stats.mean), T{1e-5}));
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
+TEST_CASE("weighted accumulate, stats::variance, scattered zero weights at wide scale", "[correctness]")
+{
+    // scattered (not prefix, not all-zero) zero weights, count_medium so
+    // the wide path is exercised, across multiple chunks/lanes
+    std::mt19937 rng {1234};
+
+    auto test = [&]<typename T>(int n, T eps) {
+        auto y = test_util::generate<T>(rng, n);
+        std::vector<T> w(n, T{1});
+        w[0] = T{0};
+        w[n / 2] = T{0};
+        w[n - 1] = T{0};
+
+        auto st = uv::accumulate<T, vstat::stats::variance>(y.begin(), y.end(), w.begin());
+
+        std::vector<T> yf;
+        for (int i = 0; i < n; ++i) {
+            if (w[i] != T{0}) { yf.push_back(y[i]); }
+        }
+        auto ref = uv::accumulate<T, vstat::stats::variance>(yf.begin(), yf.end());
+
+        INFO("st.variance = " << st.variance << ", ref.variance = " << ref.variance);
+        REQUIRE(std::isfinite(st.variance));
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.variance), static_cast<T>(ref.variance), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-5); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-3); }
+}
+
+TEST_CASE("accumulate<nan_policy::omit> with stats::variance", "[correctness]")
+{
+    std::mt19937 rng {1234};
+
+    auto test = [&]<typename T>(int n, T eps) {
+        auto x = test_util::generate<T>(rng, n);
+        auto y = test_util::generate<T>(rng, n);
+        // inject non-finite values spread across likely-multiple SIMD chunks
+        x[0] = std::numeric_limits<T>::quiet_NaN();
+        x[n / 2] = std::numeric_limits<T>::infinity();
+        x[n - 1] = -std::numeric_limits<T>::infinity();
+
+        auto [st, skipped] = uv::accumulate<T, vstat::stats::variance, vstat::nan_policy::omit>(
+            y.begin(), y.end(), x.begin(), [](auto a, auto /*b*/) { return a; });
+
+        REQUIRE(skipped == 3UL);
+
+        std::vector<T> yf;
+        for (int i = 0; i < n; ++i) {
+            if (std::isfinite(x[i])) { yf.push_back(y[i]); }
+        }
+        auto ref = uv::accumulate<T, vstat::stats::variance>(yf.begin(), yf.end());
+
+        REQUIRE(std::isfinite(st.variance));
+        INFO("st.variance = " << st.variance << ", ref.variance = " << ref.variance);
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.variance), static_cast<T>(ref.variance), eps));
+        REQUIRE(test_util::equal<T>(static_cast<T>(st.mean), static_cast<T>(ref.mean), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-5); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-3); }
+}
+
+TEST_CASE("accumulate<nan_policy::omit> all-non-finite", "[correctness]")
+{
+    auto test = [&]<typename T>() {
+        std::vector<T> x {std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::infinity(), T{1}};
+        std::vector<T> y {T{1}, T{2}, std::numeric_limits<T>::quiet_NaN()};
+
+        auto [st, skipped] = uv::accumulate<T, vstat::stats::mean, vstat::nan_policy::omit>(
+            x.begin(), x.end(), y.begin(), [](auto a, auto /*b*/) { return a; });
+
+        REQUIRE(skipped == 3UL);
+    };
+
+    SECTION("double") { test.operator()<double>(); }
+    SECTION("float")  { test.operator()<float>(); }
+}
+
+TEST_CASE("mean_squared_error/mean_absolute_error with nan_policy::omit", "[correctness]")
+{
+    std::mt19937 rng {1234};
+
+    auto test = [&]<typename T>(int n, T eps) {
+        auto x = test_util::generate<T>(rng, n);
+        auto y = test_util::generate<T>(rng, n);
+        auto w = test_util::generate<T>(rng, n, T{0.1}, T{2});
+
+        // inject a few non-finite predictions
+        x[0] = std::numeric_limits<T>::quiet_NaN();
+        x[n / 2] = std::numeric_limits<T>::infinity();
+
+        std::vector<T> xf, yf, wf;
+        for (int i = 0; i < n; ++i) {
+            if (std::isfinite(x[i]) && std::isfinite(y[i])) {
+                xf.push_back(x[i]);
+                yf.push_back(y[i]);
+                wf.push_back(w[i]);
+            }
+        }
+
+        auto [mse, skipped_mse] = mv::mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin());
+        auto mse_ref = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin());
+        REQUIRE(skipped_mse == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(mse), static_cast<T>(mse_ref), eps));
+
+        auto [mae, skipped_mae] = mv::mean_absolute_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin());
+        auto mae_ref = mv::mean_absolute_error<T>(xf.begin(), xf.end(), yf.begin());
+        REQUIRE(skipped_mae == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(mae), static_cast<T>(mae_ref), eps));
+
+        auto [wmse, w_skipped_mse] = mv::mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin(), w.begin());
+        auto wmse_ref = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
+        REQUIRE(w_skipped_mse == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(wmse), static_cast<T>(wmse_ref), eps));
+
+        auto [wmae, w_skipped_mae] = mv::mean_absolute_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin(), w.begin());
+        auto wmae_ref = mv::mean_absolute_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
+        REQUIRE(w_skipped_mae == 2UL);
+        REQUIRE(test_util::equal<T>(static_cast<T>(wmae), static_cast<T>(wmae_ref), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-5); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-3); }
+}
+
+TEST_CASE("normalized_mean_squared_error with nan_policy::omit", "[correctness]")
+{
+    std::mt19937 rng {1234};
+
+    // Two properties verified per case:
+    //  (a) one-pass result equals the two-pass reference
+    //      mean(sqr(xf - yf)) / variance(yf) over the hand-built finite
+    //      subset; same on the weighted side.
+    //  (b) skipped count matches the number of injected non-finite pairs.
+    auto test = [&]<typename T>(int n, T eps) {
+        auto x = test_util::generate<T>(rng, n);
+        auto y = test_util::generate<T>(rng, n);
+        auto w = test_util::generate<T>(rng, n, T{0.1}, T{2});
+
+        // inject non-finite predictions at a handful of indices, including
+        // the very first and very last positions so the SIMD fast-path
+        // (all-finite chunk) and the scalar tail both see masking pressure.
+        auto const inject = [&](int idx) {
+            x[idx] = (idx % 2) ? std::numeric_limits<T>::quiet_NaN()
+                               : std::numeric_limits<T>::infinity();
+        };
+        inject(0);
+        inject(n / 3);
+        inject(n / 2);
+        inject(n - 1);
+        std::size_t const expected_skipped = 4;
+
+        std::vector<T> xf, yf, wf;
+        for (int i = 0; i < n; ++i) {
+            if (std::isfinite(x[i]) && std::isfinite(y[i])) {
+                xf.push_back(x[i]);
+                yf.push_back(y[i]);
+                wf.push_back(w[i]);
+            }
+        }
+
+        // Unweighted reference over the hand-built finite subset.
+        auto mse_ref = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin());
+        auto var_y_ref = uv::accumulate<T>(yf.begin(), yf.end()).variance;
+        auto nmse_ref = var_y_ref > 0.0 ? mse_ref / var_y_ref : 0.0;
+
+        auto [nmse, skipped] = mv::normalized_mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin());
+        REQUIRE(skipped == expected_skipped);
+        REQUIRE(test_util::equal<T>(static_cast<T>(nmse), static_cast<T>(nmse_ref), eps));
+
+        // Weighted reference: NMSE(y, yhat, w) = mean(sqr(xf-yf), wf) / variance(yf, wf)
+        auto wmse_ref = mv::mean_squared_error<T>(xf.begin(), xf.end(), yf.begin(), wf.begin());
+        auto wvar_y_ref = uv::accumulate<T>(yf.begin(), yf.end(), wf.begin()).variance;
+        auto wnmse_ref = wvar_y_ref > 0.0 ? wmse_ref / wvar_y_ref : 0.0;
+
+        auto [wnmse, wskipped] = mv::normalized_mean_squared_error<T, vstat::nan_policy::omit>(x.begin(), x.end(), y.begin(), w.begin());
+        REQUIRE(wskipped == expected_skipped);
+        REQUIRE(test_util::equal<T>(static_cast<T>(wnmse), static_cast<T>(wnmse_ref), eps));
+    };
+
+    SECTION("double") { test.operator()<double>(count_medium, 1e-5); }
+    SECTION("float")  { test.operator()<float>(count_medium, 1e-3); }
+}
+
 TEST_CASE("poisson_neg_likelihood_loss", "[correctness]")
 {
     std::mt19937 rng {1234};
@@ -765,6 +1100,32 @@ TEST_CASE("benchmarks", "[performance]")
             [&]() -> void
             { m += bv::accumulate<float>(xf.begin(), xf.end(), yf.begin(), wf.begin()).covariance; });
         bench.batch(s).run("boost.accu", [&]() -> void { m += stat_other::boost::covariance(xf, yf, wf); });
+    }
+    bench.render(test_util::csv(), std::cout);
+}
+
+TEST_CASE("masked vs unmasked mean squared error", "[performance]")
+{
+    std::mt19937 rng {1234};
+
+    nb::Bench bench;
+    for (auto s = 1000; s <= 1024 * 1024; s *= 2) {
+        auto xd = test_util::generate<double>(rng, s);
+        auto yd = test_util::generate<double>(rng, s);
+        auto xf = test_util::generate<float>(rng, s);
+        auto yf = test_util::generate<float>(rng, s);
+
+        double m {0.0};
+
+        bench.context("dtype", "double");
+        bench.context("statistic", "mean squared error");
+        bench.batch(s).run("unmasked", [&]() -> void { m += mv::mean_squared_error<double>(xd.begin(), xd.end(), yd.begin()); });
+        bench.batch(s).run("masked (finite)", [&]() -> void { m += mv::mean_squared_error<double, vstat::nan_policy::omit>(xd.begin(), xd.end(), yd.begin()).first; });
+
+        bench.context("dtype", "float");
+        bench.context("statistic", "mean squared error");
+        bench.batch(s).run("unmasked", [&]() -> void { m += mv::mean_squared_error<float>(xf.begin(), xf.end(), yf.begin()); });
+        bench.batch(s).run("masked (finite)", [&]() -> void { m += mv::mean_squared_error<float, vstat::nan_policy::omit>(xf.begin(), xf.end(), yf.begin()).first; });
     }
     bench.render(test_util::csv(), std::cout);
 }
