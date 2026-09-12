@@ -4,6 +4,7 @@
 .cache/
 .clangd/
 build/
+docs/html/
 cmake/open-cpp-coverage.cmake
 cmake-build-*/
 prefix/
